@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🔄 Panel de Movimientos</title>
+    <style>
+        :root { 
+            --azul-fuerte: #1e40af; 
+            --azul-medio: #3b82f6; 
+            --azul-claro: #eff6ff;
+            --blanco: #ffffff;
+            --gris-borde: #e2e8f0;
+            --rojo-error: #ef4444;
+            --amarillo-aviso: #fef08a;
+            --verde-exito: #10b981;
+            --gris-texto: #64748b;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b;
+            display: flex; 
+            justify-content: center; 
+            padding: 10px; 
+            margin: 0;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container { 
+            background: var(--blanco); 
+            padding: 1.25rem; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); 
+            width: 100%; 
+            max-width: 900px; 
+            border: 1px solid var(--gris-borde);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+        }
+
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 15px; 
+            border-bottom: 2px solid var(--azul-claro); 
+            padding-bottom: 15px; 
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .header h1 { 
+            color: var(--azul-fuerte); 
+            margin: 0; 
+            font-size: 1.4rem; 
+            letter-spacing: -0.5px; 
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 10px;
+            font-size: 0.8rem;
+        }
+
+        .stats span {
+            background: var(--azul-claro);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #bfdbfe;
+            color: var(--azul-fuerte);
+            font-weight: 700;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+        }
+
+        table { 
+            width: 100%; 
+            max-width: 800px; /* Evita que las columnas se separen demasiado */
+            margin: 5px auto; /* Centra la tabla */
+            border-collapse: collapse; 
+            min-width: 320px; 
+        }
+
+        th { 
+            font-size: 0.75rem; 
+            color: var(--azul-medio); 
+            border-bottom: 2px solid var(--azul-claro); 
+            padding: 8px 6px; 
+            position: sticky;
+            top: 0;
+            background: var(--blanco);
+            z-index: 1;
+        }
+
+        td { 
+            padding: 8px 6px; /* Menos espaciado interior */
+            border-bottom: 1px solid #f1f5f9; 
+            font-size: 0.85rem; 
+            vertical-align: middle;
+        }
+
+        /* Alineación central para que no esté tan espaciado */
+        th:nth-child(1), td:nth-child(1) { text-align: left; }
+        th:nth-child(2), td:nth-child(2) { text-align: center; }
+        th:nth-child(3), td:nth-child(3) { text-align: center; }
+        th:nth-child(4), td:nth-child(4) { text-align: right; }
+        
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        .code-cell {
+            font-weight: 800;
+            color: var(--azul-fuerte);
+        }
+
+        .loc-registro {
+            color: #475569;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .loc-lectura {
+            color: var(--azul-fuerte);
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            background: var(--azul-claro);
+            padding: 3px 8px;
+            border-radius: 6px;
+            flex-wrap: wrap;
+            border: 1px solid #bfdbfe;
+        }
+
+        .btn-movido {
+            background: var(--azul-medio);
+            color: white;
+            border: none;
+            padding: 6px 4px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 125px; /* Ancho estático para evitar el error de animación / salto de fila */
+            min-width: 125px; 
+            text-align: center;
+            box-sizing: border-box;
+            display: inline-block;
+            white-space: nowrap; /* Evita que el texto se rompa en dos líneas */
+        }
+
+        .btn-movido:hover {
+            background: var(--azul-fuerte);
+        }
+
+        /* Estado Movido */
+        tr.is-moved td {
+            opacity: 0.6;
+            background-color: #f8fafc;
+        }
+
+        tr.is-moved .code-cell {
+            text-decoration: line-through;
+            color: var(--gris-texto);
+        }
+
+        tr.is-moved .btn-movido {
+            background: var(--verde-exito);
+        }
+        
+        tr.is-moved .btn-movido:hover {
+            background: var(--rojo-error);
+            color: white;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 30px;
+            color: var(--azul-medio);
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Adaptabilidad para Móviles */
+        @media (max-width: 600px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .stats {
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 5px;
+            }
+            th { font-size: 0.65rem; padding: 8px 2px; }
+            td { font-size: 0.75rem; padding: 6px 2px; }
+            .btn-movido { 
+                width: 105px; 
+                min-width: 105px; 
+                font-size: 0.65rem; 
+            }
+            .loc-lectura { padding: 2px 4px; font-size: 0.70rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🔄 Panel de Movimientos PL</h1>
+        <div class="stats">
+            <span id="pendientesCount">Pendientes: 0</span>
+            <span id="movidosCount" style="color: var(--verde-exito); border-color: #bbf7d0; background: #f0fdf4;">Movidos: 0</span>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>CÓDIGO</th>
+                    <th>POSICIÓN ACTUAL</th>
+                    <th>MOVER AL PICKING</th>
+                    <th style="text-align: right;">ACCIÓN</th>
+                </tr>
+            </thead>
+            <tbody id="tablaBody">
+                <tr><td colspan="4" class="loader">Conectando con las bases de datos...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Firebase Scripts (Versión 10 Modular) - Lógica intacta -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // 1. Configuración de Firebase (Registro - Firestore)
+    const configRegistro = {
+        apiKey: "AIzaSyBDTUUcNv0YYEE0U_TqpyEAuqn9TV9kFqo",
+        authDomain: "ubicaciones-6afcd.firebaseapp.com",
+        projectId: "ubicaciones-6afcd"
+    };
+
+    // 2. Configuración de Firebase (Lecturas 1 - Realtime Database)
+    const configLecturas1 = {
+        apiKey: "AIzaSyClp2tVcoeIE_ZOedIzP6zyEXEoP9Em0tM",
+        databaseURL: "https://chatpareja-3fbce-default-rtdb.firebaseio.com",
+        projectId: "chatpareja-3fbce"
+    };
+
+    // 3. Configuración de Firebase (Lecturas 2 - Realtime Database)
+    const configLecturas2 = {
+        apiKey: "AIzaSyAENxoHkiH5XrW5iOYJl9ci_w8SSYoLw3s",
+        databaseURL: "https://verproductos-40224-default-rtdb.firebaseio.com",
+        projectId: "verproductos-40224"
+    };
+
+    // Inicializar Apps
+    const appRegistro = initializeApp(configRegistro, "appRegistro");
+    const appLecturas1 = initializeApp(configLecturas1, "appLecturas1");
+    const appLecturas2 = initializeApp(configLecturas2, "appLecturas2");
+
+    const dbFirestore = getFirestore(appRegistro);
+    const dbRT1 = getDatabase(appLecturas1);
+    const dbRT2 = getDatabase(appLecturas2);
+
+    let dataRegistro = {}; 
+    let datosRT1 = {};     
+    let datosRT2 = {};     
+    let dataLecturas = {}; 
+    
+    let movidosLocales = new Set(JSON.parse(localStorage.getItem('movidos_estado')) || []);
+
+    const tablaBody = document.getElementById('tablaBody');
+    const pendientesCount = document.getElementById('pendientesCount');
+    const movidosCount = document.getElementById('movidosCount');
+
+    function procesarLecturas() {
+        dataLecturas = {};
+        const procesarData = (datos) => {
+            Object.keys(datos).forEach(station => {
+                if (datos[station] && datos[station].length > 0) {
+                    datos[station].forEach(item => {
+                        if (!dataLecturas[item.code]) {
+                            dataLecturas[item.code] = new Set();
+                        }
+                        dataLecturas[item.code].add(station);
+                    });
+                }
+            });
+        };
+        procesarData(datosRT1);
+        procesarData(datosRT2);
+    }
+
+    function renderTable() {
+        procesarLecturas();
+
+        const codigosRegistro = Object.keys(dataRegistro);
+        const codigosConectados = codigosRegistro.filter(cod => dataLecturas[cod] && dataLecturas[cod].size > 0);
+
+        if (codigosConectados.length === 0) {
+            tablaBody.innerHTML = '<tr><td colspan="4" class="loader">No hay códigos coincidentes entre Registro y Lecturas.</td></tr>';
+            actualizarContadores(0);
+            return;
+        }
+
+        tablaBody.innerHTML = '';
+        let pendientes = 0;
+
+        codigosConectados.forEach(cod => {
+            const posicionActual = dataRegistro[cod];
+            const moverA = [...dataLecturas[cod]].join(', ');
+            const estaMovido = movidosLocales.has(cod);
+
+            if (!estaMovido) pendientes++;
+
+            const tr = document.createElement('tr');
+            if (estaMovido) tr.classList.add('is-moved');
+            
+            tr.innerHTML = `
+                <td><span class="code-cell">${cod}</span></td>
+                <td>
+                    <span class="loc-registro">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        ${posicionActual}
+                    </span>
+                </td>
+                <td>
+                    <span class="loc-lectura">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                        ${moverA}
+                    </span>
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn-movido" onclick="toggleMovido('${cod}')" 
+                        onmouseover="this.innerHTML='${estaMovido ? '↩️ Deshacer' : '🚀 Mover'}'" 
+                        onmouseout="this.innerHTML='${estaMovido ? '✅ Completado' : '🚀 Mover'}'">
+                        ${estaMovido ? '✅ Completado' : '🚀 Mover'}
+                    </button>
+                </td>
+            `;
+            tablaBody.appendChild(tr);
+        });
+
+        actualizarContadores(pendientes);
+    }
+
+    function actualizarContadores(pendientes) {
+        pendientesCount.textContent = `Pendientes: ${pendientes}`;
+        movidosCount.textContent = `Movidos: ${movidosLocales.size}`;
+    }
+
+    window.toggleMovido = (cod) => {
+        if (movidosLocales.has(cod)) {
+            movidosLocales.delete(cod); 
+        } else {
+            movidosLocales.add(cod); 
+        }
+        localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
+        renderTable(); 
+    };
+
+    onSnapshot(collection(dbFirestore, "registros"), (snapshot) => {
+        dataRegistro = {};
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.cod) {
+                dataRegistro[data.cod] = data.pos;
+            }
+        });
+        renderTable();
+    });
+
+    onValue(ref(dbRT1, 'picking_live/stationsData'), (snapshot) => {
+        datosRT1 = snapshot.val() || {};
+        renderTable();
+    });
+
+    onValue(ref(dbRT2, 'picking_live/stationsData'), (snapshot) => {
+        datosRT2 = snapshot.val() || {};
+        renderTable();
+    });
+</script>
+</body>
+</html>

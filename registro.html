@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>📝 Registro de Ubicación</title>
+    <!-- Librería para leer archivos Excel (XLSX) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root { 
+            --azul-fuerte: #1e40af; 
+            --azul-medio: #3b82f6; 
+            --azul-claro: #eff6ff;
+            --blanco: #ffffff;
+            --gris-borde: #e2e8f0;
+            --rojo-error: #ef4444;
+            --amarillo-aviso: #fef08a;
+            --verde-exito: #10b981;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b;
+            display: flex; 
+            justify-content: center; 
+            padding: 10px; 
+            margin: 0;
+        }
+
+        .card { 
+            background: var(--blanco); 
+            padding: 1.25rem; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); 
+            width: 100%; 
+            max-width: 600px; 
+            border: 1px solid var(--gris-borde);
+            box-sizing: border-box;
+            position: relative;
+        }
+        
+        .header { 
+            display: flex; 
+            justify-content: center; 
+            margin-bottom: 20px; 
+            border-bottom: 2px solid var(--azul-claro); 
+            padding-bottom: 10px; 
+        }
+        
+        h2 { color: var(--azul-fuerte); margin: 0; font-size: 1.4rem; letter-spacing: -0.5px; }
+        
+        .row { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            margin-bottom: 15px; 
+        }
+        
+        label { 
+            display: block; 
+            font-size: 0.75rem; 
+            font-weight: 700; 
+            margin-bottom: 5px; 
+            color: var(--azul-medio); 
+            text-transform: uppercase; 
+        }
+        
+        input:not([type="file"]) { 
+            width: 100%; 
+            padding: 14px; 
+            border: 2px solid var(--gris-borde); 
+            border-radius: 10px; 
+            box-sizing: border-box; 
+            transition: all 0.3s ease; 
+            font-size: 16px; 
+            text-transform: uppercase;
+        }
+        
+        input:focus { 
+            border-color: var(--azul-medio); 
+            outline: none; 
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Estilos para el Menú Flotante */
+        .floating-menu {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1px solid var(--gris-borde);
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            z-index: 1000;
+            width: 300px;
+            padding: 10px;
+        }
+
+        .menu-grid {
+            display: flex;
+            gap: 10px;
+        }
+
+        .menu-col {
+            flex: 1;
+        }
+
+        .floating-menu button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 2px 0;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+
+        .floating-menu button:hover {
+            background: var(--azul-claro);
+            color: var(--azul-fuerte);
+        }
+
+        .btn-manual {
+            border-top: 1px solid var(--gris-borde) !important;
+            margin-top: 5px !important;
+            color: var(--azul-medio);
+            font-weight: bold !important;
+        }
+
+        .actions-top { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 15px; 
+        }
+        
+        .btn {
+            border: none;
+            padding: 14px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn-copy { background: var(--azul-medio); color: white; flex: 1.5; }
+        .btn-upload { background: var(--verde-exito); color: white; flex: 1.5; }
+        .btn-clear { 
+            background: #ffffff; 
+            color: #ef4444; 
+            border: 1px solid #fecaca;
+            flex: 1;
+        }
+
+        /* NUEVO: Estilos para el buscador */
+        .search-container {
+            margin-bottom: 15px;
+        }
+
+        #buscador {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--gris-borde);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            text-transform: none; /* Permitir minúsculas visualmente en el buscador */
+        }
+
+        #buscador:focus {
+            border-color: var(--azul-medio);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        /* MODIFICADO: Contenedor de la tabla con scroll vertical */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            max-height: 350px; /* Limita la altura para generar el scroll */
+            overflow-y: auto;  /* Activa el scroll vertical */
+            -webkit-overflow-scrolling: touch;
+            border: 1px solid var(--gris-borde);
+            border-radius: 8px;
+        }
+
+        table { width: 100%; border-collapse: collapse; min-width: 400px; }
+        
+        /* MODIFICADO: Cabecera fija para que no se pierda al hacer scroll */
+        th { 
+            text-align: left; 
+            font-size: 0.75rem; 
+            color: var(--azul-medio); 
+            border-bottom: 2px solid var(--azul-claro); 
+            padding: 10px; 
+            position: sticky; 
+            top: 0; 
+            background: var(--blanco); 
+            z-index: 10;
+        }
+        
+        td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; font-size: 0.90rem; }
+        
+        .btn-delete-row { 
+            background: #fee2e2; 
+            color: #ef4444; 
+            border: none; 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            font-size: 0.75rem; 
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .hint { 
+            font-size: 0.7rem; 
+            color: var(--azul-medio); 
+            text-align: center; 
+            margin-top: 20px; 
+            background: var(--azul-claro);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .repetido-bg {
+            background-color: var(--amarillo-aviso);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        
+        .repetido-tag {
+            display: block;
+            color: var(--rojo-error);
+            font-size: 0.65rem;
+            font-weight: bold;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+
+        @media (min-width: 480px) {
+            .row { flex-direction: row; }
+            body { padding: 30px; }
+            .card { padding: 2rem; }
+            h2 { font-size: 1.6rem; }
+            .table-container { max-height: 450px; } /* Más alto en pantallas grandes */
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header">
+        <h2>📝 Registro de ubicaciones PL</h2>
+    </div>
+    
+    <div class="row">
+        <div class="input-group" style="flex: 1;">
+            <label>1. Código</label>
+            <input type="number" inputmode="numeric" id="codigo" placeholder="Escribir..." autocomplete="off">
+        </div>
+        <div class="input-group" style="flex: 1; position: relative;">
+            <label>2. Posición</label>
+            <input type="text" id="posicion" placeholder="Ubicación..." autocomplete="off" readonly>
+            
+            <div id="menuUbicaciones" class="floating-menu">
+                <div class="menu-grid">
+                    <div class="menu-col">
+                        <button type="button" onclick="seleccionarPos('T01A')">T01A</button>
+                        <button type="button" onclick="seleccionarPos('T01B')">T01B</button>
+                        <button type="button" onclick="seleccionarPos('T01C')">T01C</button>
+                        <button type="button" onclick="seleccionarPos('T01D')">T01D</button>
+                        <button type="button" onclick="seleccionarPos('T01E')">T01E</button>
+                    </div>
+                    <div class="menu-col">
+                        <button type="button" onclick="seleccionarPos('T02A')">T02A</button>
+                        <button type="button" onclick="seleccionarPos('T02B')">T02B</button>
+                        <button type="button" onclick="seleccionarPos('T02C')">T02C</button>
+                        <button type="button" onclick="seleccionarPos('T02D')">T02D</button>
+                        <button type="button" onclick="seleccionarPos('T02E')">T02E</button>
+                    </div>
+                </div>
+                <button type="button" class="btn-manual" onclick="activarManual()">⌨️ INGRESO MANUAL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Se agregó el botón para Excel y un input oculto -->
+    <div class="actions-top">
+        <button class="btn btn-copy" id="btnCopiar">📋 COPIAR</button>
+        <button class="btn btn-upload" id="btnSubirBase">📁 Cargar base</button>
+        <button class="btn btn-clear" id="btnLimpiar">LIMPIAR</button>
+    </div>
+    <input type="file" id="inputFile" accept=".xlsx, .xls" style="display: none;">
+
+    <!-- NUEVO: Contenedor del Buscador -->
+    <div class="search-container">
+        <input type="text" id="buscador" placeholder="🔍 Buscar por código o posición..." autocomplete="off">
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>CÓDIGO</th>
+                    <th>POSICIÓN</th>
+                    <th>ACCIÓN</th>
+                    <th style="text-align: right;">FECHA</th>
+                </tr>
+            </thead>
+            <tbody id="tablaBody"></tbody>
+        </table>
+    </div>
+
+    <div class="hint">📱 Los cambios se sincronizan en tiempo real</div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+        getFirestore, 
+        collection, 
+        addDoc, 
+        onSnapshot, 
+        deleteDoc, 
+        doc, 
+        query, 
+        orderBy, 
+        getDocs, 
+        writeBatch,
+        setDoc // Importado setDoc para guardar la base de Excel
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBDTUUcNv0YYEE0U_TqpyEAuqn9TV9kFqo",
+        authDomain: "ubicaciones-6afcd.firebaseapp.com",
+        projectId: "ubicaciones-6afcd",
+        storageBucket: "ubicaciones-6afcd.firebasestorage.app",
+        messagingSenderId: "982728208217",
+        appId: "1:982728208217:web:1a9acb828f73d1b0bc2648"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const inventarioCol = collection(db, "registros");
+    const baseRef = doc(db, "configuracion", "codigos_validos"); // Documento único que se sobreescribe
+
+    const inputCod = document.getElementById('codigo');
+    const inputPos = document.getElementById('posicion');
+    const menuUbicaciones = document.getElementById('menuUbicaciones');
+    const tablaBody = document.getElementById('tablaBody');
+    const inputFile = document.getElementById('inputFile');
+    const inputBuscador = document.getElementById('buscador'); // NUEVO: Ref al buscador
+    
+    let registrosActuales = [];
+    let codigosBase = []; // Aquí se guardan los códigos válidos en tiempo real
+
+    // Escuchar la base de códigos válidos desde Firebase
+    onSnapshot(baseRef, (docSnap) => {
+        if (docSnap.exists()) {
+            codigosBase = docSnap.data().lista || [];
+        } else {
+            codigosBase = [];
+        }
+    });
+
+    inputPos.onclick = (e) => {
+        menuUbicaciones.style.display = 'block';
+        e.stopPropagation();
+    };
+
+    window.seleccionarPos = (valor) => {
+        inputPos.value = valor;
+        inputPos.readOnly = true;
+        menuUbicaciones.style.display = 'none';
+        registrar();
+    };
+
+    window.activarManual = () => {
+        inputPos.value = "";
+        inputPos.readOnly = false;
+        menuUbicaciones.style.display = 'none';
+        inputPos.focus();
+    };
+
+    document.addEventListener('click', () => {
+        menuUbicaciones.style.display = 'none';
+    });
+
+    const q = query(inventarioCol, orderBy("timestamp", "desc"));
+    onSnapshot(q, (snapshot) => {
+        registrosActuales = [];
+        tablaBody.innerHTML = '';
+        
+        const codigosList = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            codigosList.push(data.cod);
+            registrosActuales.push({ ...data, id: docSnap.id });
+        });
+
+        // REORDENAMIENTO: Poner los repetidos al inicio de la tabla
+        registrosActuales.sort((a, b) => {
+            const esRepetidoA = codigosList.filter(c => c === a.cod).length > 1;
+            const esRepetidoB = codigosList.filter(c => c === b.cod).length > 1;
+
+            if (esRepetidoA && !esRepetidoB) return -1;
+            if (!esRepetidoA && esRepetidoB) return 1;
+            return 0; // Si ambos son iguales, conserva el orden por fecha
+        });
+
+        registrosActuales.forEach((data) => {
+            const esRepetido = codigosList.filter(c => c === data.cod).length > 1;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <strong class="${esRepetido ? 'repetido-bg' : ''}">${data.cod}</strong>
+                    ${esRepetido ? '<span class="repetido-tag">Repetido</span>' : ''}
+                </td>
+                <td>${data.pos}</td>
+                <td>
+                    <button class="btn-delete-row" onclick="borrarFila('${data.id}')">Borrar</button>
+                </td>
+                <td style="font-size: 0.8rem; color: #64748b; text-align: right;">${data.fechaStr || '-'}</td>
+            `;
+            tablaBody.appendChild(tr);
+        });
+
+        // NUEVO: Re-aplicar el filtro del buscador si se actualiza la base de datos
+        inputBuscador.dispatchEvent(new Event('input'));
+    });
+
+    async function registrar() {
+        const cod = inputCod.value.trim().toUpperCase();
+        const pos = inputPos.value.trim().toUpperCase();
+        
+        const ahora = new Date();
+        const fechaStr = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) + ' ' + 
+                         ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+        if (cod && pos) {
+            // Validación: Si hay códigos en la base y el código escaneado no está en ella
+            if (codigosBase.length > 0 && !codigosBase.includes(cod)) {
+                alertarCodigoNoExiste();
+                inputCod.value = '';
+                inputPos.value = '';
+                inputPos.readOnly = true;
+                inputCod.focus();
+                return; // Se detiene el proceso, no se guarda en la tabla
+            }
+
+            const yaExiste = registrosActuales.some(r => r.cod === cod);
+            if (yaExiste) {
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                alertarCodigoRepetido();
+            }
+
+            try {
+                await addDoc(inventarioCol, {
+                    cod,
+                    pos,
+                    fechaStr,
+                    timestamp: Date.now()
+                });
+                inputCod.value = '';
+                inputPos.value = '';
+                inputPos.readOnly = true;
+                inputCod.focus();
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+    }
+
+    // Lógica para procesar el archivo Excel
+    document.getElementById('btnSubirBase').onclick = () => {
+        inputFile.click();
+    };
+
+    inputFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const primeraHoja = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[primeraHoja];
+                
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                const nuevosCodigos = [];
+
+                jsonData.forEach(fila => {
+                    // Busca la columna ignorando mayúsculas, minúsculas o espacios extra
+                    const nombreColumna = Object.keys(fila).find(k => k.trim().toLowerCase() === "código producto" || k.trim().toLowerCase() === "codigo producto");
+                    
+                    if (nombreColumna && fila[nombreColumna]) {
+                        nuevosCodigos.push(String(fila[nombreColumna]).trim().toUpperCase());
+                    }
+                });
+
+                if (nuevosCodigos.length > 0) {
+                    // setDoc sobreescribe el documento borrando la data antigua automáticamente
+                    await setDoc(baseRef, { lista: nuevosCodigos });
+                    alert(`✅ Base actualizada. Se cargaron ${nuevosCodigos.length} códigos válidos.`);
+                } else {
+                    alert("❌ No se encontró la columna 'Código Producto' o está vacía.");
+                }
+            } catch (error) {
+                alert("Error al procesar el archivo Excel: " + error.message);
+            }
+            inputFile.value = ""; // Resetea el input
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    window.borrarFila = async (id) => {
+        const registro = registrosActuales.find(r => r.id === id);
+        const codABorrar = registro ? registro.cod : "";
+
+        if(confirm(`¿Eliminar el código ${codABorrar}?`)) {
+            await deleteDoc(doc(db, "registros", id));
+        }
+    };
+
+    document.getElementById('btnLimpiar').onclick = async () => {
+        if (registrosActuales.length > 0 && confirm("¿Borrar todo el listado?")) {
+            const snapshot = await getDocs(inventarioCol);
+            const batch = writeBatch(db);
+            snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+        }
+    };
+
+    document.getElementById('btnCopiar').onclick = () => {
+        if (registrosActuales.length === 0) return alert("No hay datos para copiar.");
+        let texto = "CÓDIGO\tPOSICIÓN\tFECHA\n";
+        registrosActuales.forEach(item => {
+            texto += `${item.cod}\t${item.pos}\t${item.fechaStr || ''}\n`;
+        });
+        navigator.clipboard.writeText(texto).then(() => {
+            alert("📋 Tabla copiada.");
+        });
+    };
+
+    // NUEVO: Evento para filtrar la tabla con el buscador
+    inputBuscador.addEventListener('input', (e) => {
+        const termino = e.target.value.toLowerCase();
+        const filas = tablaBody.getElementsByTagName('tr');
+        
+        Array.from(filas).forEach(fila => {
+            // Evaluamos la celda de Código (índice 0) y Posición (índice 1)
+            const textoCodigo = fila.cells[0].textContent.toLowerCase();
+            const textoPosicion = fila.cells[1].textContent.toLowerCase();
+            
+            if (textoCodigo.includes(termino) || textoPosicion.includes(termino)) {
+                fila.style.display = '';
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+    });
+
+    inputCod.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && inputCod.value.trim() !== "") {
+            menuUbicaciones.style.display = 'block';
+        }
+    });
+
+    inputPos.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') registrar();
+    });
+
+    window.onload = () => inputCod.focus();
+    
+    // Funciones de Voz
+    function reproducirVoz(texto) {
+        if ('speechSynthesis' in window) {
+            const mensaje = new SpeechSynthesisUtterance(texto);
+            mensaje.lang = 'es-ES'; 
+            mensaje.rate = 1.0;
+            mensaje.pitch = 1.1; 
+            
+            const voces = window.speechSynthesis.getVoices();
+            const vozNatural = voces.find(voz => voz.name.includes('Google') && voz.lang.includes('es')) || 
+                               voces.find(voz => (voz.name.includes('Sabina') || voz.name.includes('Helena')) && voz.lang.includes('es')) ||
+                               voces.find(voz => voz.lang.startsWith('es'));
+                               
+            if (vozNatural) {
+                mensaje.voice = vozNatural;
+            }
+            
+            window.speechSynthesis.speak(mensaje);
+        }
+    }
+
+    function alertarCodigoRepetido() {
+        reproducirVoz("Código repetido");
+    }
+
+    function alertarCodigoNoExiste() {
+        reproducirVoz("código incorrecto");
+    }
+
+    // Cargar las voces en segundo plano
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.getVoices();
+    }
+</script>
+
+</body>
+</html>
