@@ -113,7 +113,6 @@
             vertical-align: middle;
         }
 
-        /* Alineación central actualizada por la nueva columna */
         th:nth-child(1), td:nth-child(1) { text-align: center; width: 40px; }
         th:nth-child(2), td:nth-child(2) { text-align: left; }
         th:nth-child(3), td:nth-child(3) { text-align: center; }
@@ -174,7 +173,6 @@
             background: var(--azul-fuerte);
         }
 
-        /* Estilos del nuevo botón de eliminar */
         .btn-eliminar {
             background: #fee2e2;
             color: var(--rojo-error);
@@ -194,7 +192,6 @@
             color: white;
         }
 
-        /* Estado Movido */
         tr.is-moved td {
             opacity: 0.6;
             background-color: #f8fafc;
@@ -227,7 +224,6 @@
             height: 14px;
         }
 
-        /* Adaptabilidad para Móviles */
         @media (max-width: 600px) {
             .header {
                 flex-direction: column;
@@ -279,35 +275,29 @@
     </div>
 </div>
 
-<!-- Firebase Scripts (Versión 10 Modular) -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    // IMPORTANTE: Se añadieron doc y deleteDoc para la nueva función
     import { getFirestore, collection, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // 1. Configuración de Firebase (Registro - Firestore)
     const configRegistro = {
         apiKey: "AIzaSyBDTUUcNv0YYEE0U_TqpyEAuqn9TV9kFqo",
         authDomain: "ubicaciones-6afcd.firebaseapp.com",
         projectId: "ubicaciones-6afcd"
     };
 
-    // 2. Configuración de Firebase (Lecturas 1 - Realtime Database)
     const configLecturas1 = {
         apiKey: "AIzaSyClp2tVcoeIE_ZOedIzP6zyEXEoP9Em0tM",
         databaseURL: "https://chatpareja-3fbce-default-rtdb.firebaseio.com",
         projectId: "chatpareja-3fbce"
     };
 
-    // 3. Configuración de Firebase (Lecturas 2 - Realtime Database)
     const configLecturas2 = {
         apiKey: "AIzaSyAENxoHkiH5XrW5iOYJl9ci_w8SSYoLw3s",
         databaseURL: "https://verproductos-40224-default-rtdb.firebaseio.com",
         projectId: "verproductos-40224"
     };
 
-    // Inicializar Apps
     const appRegistro = initializeApp(configRegistro, "appRegistro");
     const appLecturas1 = initializeApp(configLecturas1, "appLecturas1");
     const appLecturas2 = initializeApp(configLecturas2, "appLecturas2");
@@ -317,7 +307,7 @@
     const dbRT2 = getDatabase(appLecturas2);
 
     let dataRegistro = {}; 
-    let docIdsRegistro = {}; // Almacena el ID del documento en Firestore para poder eliminarlo
+    let docIdsRegistro = {}; 
     let datosRT1 = {};     
     let datosRT2 = {};     
     let dataLecturas = {}; 
@@ -352,33 +342,37 @@
         const codigosRegistro = Object.keys(dataRegistro);
         let codigosConectados = codigosRegistro.filter(cod => dataLecturas[cod] && dataLecturas[cod].size > 0);
 
-        // Optimización de Rutas de Recolección
         codigosConectados.sort((a, b) => {
-            const posA = String(dataRegistro[a] || "");
-            const posB = String(dataRegistro[b] || "");
+            const posA = String((dataRegistro[a] || []).join(', '));
+            const posB = String((dataRegistro[b] || []).join(', '));
             return posA.localeCompare(posB, undefined, { numeric: true, sensitivity: 'base' });
         });
 
         if (codigosConectados.length === 0) {
             tablaBody.innerHTML = '<tr><td colspan="5" class="loader">No hay códigos coincidentes entre Registro y Lecturas.</td></tr>';
-            actualizarContadores(0);
+            actualizarContadores(0, 0); 
             return;
         }
 
         tablaBody.innerHTML = '';
         let pendientes = 0;
+        let movidosVisibles = 0; 
 
         codigosConectados.forEach(cod => {
-            const posicionActual = dataRegistro[cod];
+            // Unimos todas las posiciones registradas con un separador
+            const posicionActual = dataRegistro[cod].join(' - '); 
             const moverA = [...dataLecturas[cod]].join(', ');
             const estaMovido = movidosLocales.has(cod);
 
-            if (!estaMovido) pendientes++;
+            if (!estaMovido) {
+                pendientes++;
+            } else {
+                movidosVisibles++; 
+            }
 
             const tr = document.createElement('tr');
             if (estaMovido) tr.classList.add('is-moved');
             
-            // Se añade el nuevo td con el botón de eliminar individual
             tr.innerHTML = `
                 <td style="text-align: center;">
                     <button class="btn-eliminar" onclick="eliminarRegistroIndividual('${cod}')" title="Eliminar de Firestore">🗑️</button>
@@ -407,26 +401,32 @@
             tablaBody.appendChild(tr);
         });
 
-        actualizarContadores(pendientes);
+        actualizarContadores(pendientes, movidosVisibles); 
     }
 
-    function actualizarContadores(pendientes) {
+    function actualizarContadores(pendientes, movidosVisibles) {
         pendientesCount.textContent = `Pendientes: ${pendientes}`;
-        movidosCount.textContent = `Movidos: ${movidosLocales.size}`;
+        movidosCount.textContent = `Movidos: ${movidosVisibles}`; 
     }
 
-    // NUEVA FUNCIÓN: Eliminar registro individual de Firestore
     window.eliminarRegistroIndividual = async (cod) => {
         const password = prompt(`Va a eliminar el código ${cod} del Registro de Ubicación.\nIngrese la contraseña de seguridad:`);
         
         if (password === "Oriflame2026") {
             try {
-                const docId = docIdsRegistro[cod];
-                if (docId) {
-                    await deleteDoc(doc(dbFirestore, "registros", docId));
+                const docIds = docIdsRegistro[cod];
+                if (docIds && docIds.length > 0) {
+                    // Mapear todas las promesas de eliminación si hay múltiples registros del mismo código
+                    const deletePromises = docIds.map(id => deleteDoc(doc(dbFirestore, "registros", id)));
+                    await Promise.all(deletePromises);
+                    
+                    if (movidosLocales.has(cod)) {
+                        movidosLocales.delete(cod);
+                        localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
+                        set(ref(dbRT1, 'picking_live/movidos_sincronizados'), [...movidosLocales]);
+                    }
+
                     alert(`✅ Código ${cod} eliminado correctamente del registro.`);
-                    // Nota: No necesitamos llamar a renderTable() aquí porque el onSnapshot
-                    // de Firestore detectará el cambio y actualizará la tabla automáticamente.
                 } else {
                     alert("❌ Error: No se encontró el documento para este código en la base de datos.");
                 }
@@ -446,7 +446,6 @@
         }
         localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
         
-        // Sincronización en la Nube
         set(ref(dbRT1, 'picking_live/movidos_sincronizados'), [...movidosLocales]);
         
         renderTable(); 
@@ -454,14 +453,41 @@
 
     onSnapshot(collection(dbFirestore, "registros"), (snapshot) => {
         dataRegistro = {};
-        docIdsRegistro = {}; // Limpiamos el objeto de IDs
+        docIdsRegistro = {}; 
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             if (data.cod) {
-                dataRegistro[data.cod] = data.pos;
-                docIdsRegistro[data.cod] = docSnap.id; // Guardamos el ID del documento para poder eliminarlo
+                // Se preparan arreglos para guardar múltiples ubicaciones de un mismo código
+                if (!dataRegistro[data.cod]) {
+                    dataRegistro[data.cod] = [];
+                    docIdsRegistro[data.cod] = [];
+                }
+                
+                // Evita mostrar posiciones duplicadas visualmente si registraron la misma dos veces
+                if (!dataRegistro[data.cod].includes(data.pos)) {
+                    dataRegistro[data.cod].push(data.pos);
+                }
+                
+                // Guarda todos los IDs para poder eliminarlos completamente si se requiere
+                docIdsRegistro[data.cod].push(docSnap.id); 
             }
         });
+
+        let necesitaLimpieza = false;
+        const movidosArray = [...movidosLocales]; 
+        
+        movidosArray.forEach(cod => {
+            if (!dataRegistro[cod] || dataRegistro[cod].length === 0) { 
+                movidosLocales.delete(cod);
+                necesitaLimpieza = true;
+            }
+        });
+
+        if (necesitaLimpieza) {
+            localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
+            set(ref(dbRT1, 'picking_live/movidos_sincronizados'), [...movidosLocales]);
+        }
+
         renderTable();
     });
 
@@ -475,13 +501,14 @@
         renderTable();
     });
 
-    // Escuchar la sincronización de movimientos
     onValue(ref(dbRT1, 'picking_live/movidos_sincronizados'), (snapshot) => {
         if (snapshot.exists()) {
             movidosLocales = new Set(snapshot.val());
-            localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
-            renderTable();
+        } else {
+            movidosLocales = new Set(); 
         }
+        localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
+        renderTable();
     });
 </script>
 </body>
