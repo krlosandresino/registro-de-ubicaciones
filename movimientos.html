@@ -89,8 +89,8 @@
 
         table { 
             width: 100%; 
-            max-width: 800px; /* Evita que las columnas se separen demasiado */
-            margin: 5px auto; /* Centra la tabla */
+            max-width: 800px; 
+            margin: 5px auto; 
             border-collapse: collapse; 
             min-width: 320px; 
         }
@@ -107,17 +107,18 @@
         }
 
         td { 
-            padding: 8px 6px; /* Menos espaciado interior */
+            padding: 8px 6px; 
             border-bottom: 1px solid #f1f5f9; 
             font-size: 0.85rem; 
             vertical-align: middle;
         }
 
-        /* Alineación central para que no esté tan espaciado */
-        th:nth-child(1), td:nth-child(1) { text-align: left; }
-        th:nth-child(2), td:nth-child(2) { text-align: center; }
+        /* Alineación central actualizada por la nueva columna */
+        th:nth-child(1), td:nth-child(1) { text-align: center; width: 40px; }
+        th:nth-child(2), td:nth-child(2) { text-align: left; }
         th:nth-child(3), td:nth-child(3) { text-align: center; }
-        th:nth-child(4), td:nth-child(4) { text-align: right; }
+        th:nth-child(4), td:nth-child(4) { text-align: center; }
+        th:nth-child(5), td:nth-child(5) { text-align: right; }
         
         tr:hover td {
             background-color: #f8fafc;
@@ -161,16 +162,36 @@
             font-size: 0.75rem;
             cursor: pointer;
             transition: all 0.2s;
-            width: 125px; /* Ancho estático para evitar el error de animación / salto de fila */
+            width: 125px; 
             min-width: 125px; 
             text-align: center;
             box-sizing: border-box;
             display: inline-block;
-            white-space: nowrap; /* Evita que el texto se rompa en dos líneas */
+            white-space: nowrap; 
         }
 
         .btn-movido:hover {
             background: var(--azul-fuerte);
+        }
+
+        /* Estilos del nuevo botón de eliminar */
+        .btn-eliminar {
+            background: #fee2e2;
+            color: var(--rojo-error);
+            border: 1px solid #fca5a5;
+            padding: 5px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-eliminar:hover {
+            background: var(--rojo-error);
+            color: white;
         }
 
         /* Estado Movido */
@@ -225,6 +246,7 @@
                 font-size: 0.65rem; 
             }
             .loc-lectura { padding: 2px 4px; font-size: 0.70rem; }
+            .btn-eliminar { padding: 4px 6px; font-size: 0.75rem; }
         }
     </style>
 </head>
@@ -243,6 +265,7 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 40px; text-align: center;">🗑️</th>
                     <th>CÓDIGO</th>
                     <th>POSICIÓN ACTUAL</th>
                     <th>MOVER AL PICKING</th>
@@ -250,17 +273,18 @@
                 </tr>
             </thead>
             <tbody id="tablaBody">
-                <tr><td colspan="4" class="loader">Conectando con las bases de datos...</td></tr>
+                <tr><td colspan="5" class="loader">Conectando con las bases de datos...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Firebase Scripts (Versión 10 Modular) - Lógica intacta -->
+<!-- Firebase Scripts (Versión 10 Modular) -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    // IMPORTANTE: Se añadieron doc y deleteDoc para la nueva función
+    import { getFirestore, collection, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     // 1. Configuración de Firebase (Registro - Firestore)
     const configRegistro = {
@@ -293,6 +317,7 @@
     const dbRT2 = getDatabase(appLecturas2);
 
     let dataRegistro = {}; 
+    let docIdsRegistro = {}; // Almacena el ID del documento en Firestore para poder eliminarlo
     let datosRT1 = {};     
     let datosRT2 = {};     
     let dataLecturas = {}; 
@@ -325,10 +350,17 @@
         procesarLecturas();
 
         const codigosRegistro = Object.keys(dataRegistro);
-        const codigosConectados = codigosRegistro.filter(cod => dataLecturas[cod] && dataLecturas[cod].size > 0);
+        let codigosConectados = codigosRegistro.filter(cod => dataLecturas[cod] && dataLecturas[cod].size > 0);
+
+        // Optimización de Rutas de Recolección
+        codigosConectados.sort((a, b) => {
+            const posA = String(dataRegistro[a] || "");
+            const posB = String(dataRegistro[b] || "");
+            return posA.localeCompare(posB, undefined, { numeric: true, sensitivity: 'base' });
+        });
 
         if (codigosConectados.length === 0) {
-            tablaBody.innerHTML = '<tr><td colspan="4" class="loader">No hay códigos coincidentes entre Registro y Lecturas.</td></tr>';
+            tablaBody.innerHTML = '<tr><td colspan="5" class="loader">No hay códigos coincidentes entre Registro y Lecturas.</td></tr>';
             actualizarContadores(0);
             return;
         }
@@ -346,7 +378,11 @@
             const tr = document.createElement('tr');
             if (estaMovido) tr.classList.add('is-moved');
             
+            // Se añade el nuevo td con el botón de eliminar individual
             tr.innerHTML = `
+                <td style="text-align: center;">
+                    <button class="btn-eliminar" onclick="eliminarRegistroIndividual('${cod}')" title="Eliminar de Firestore">🗑️</button>
+                </td>
                 <td><span class="code-cell">${cod}</span></td>
                 <td>
                     <span class="loc-registro">
@@ -379,6 +415,29 @@
         movidosCount.textContent = `Movidos: ${movidosLocales.size}`;
     }
 
+    // NUEVA FUNCIÓN: Eliminar registro individual de Firestore
+    window.eliminarRegistroIndividual = async (cod) => {
+        const password = prompt(`Va a eliminar el código ${cod} del Registro de Ubicación.\nIngrese la contraseña de seguridad:`);
+        
+        if (password === "Oriflame2026") {
+            try {
+                const docId = docIdsRegistro[cod];
+                if (docId) {
+                    await deleteDoc(doc(dbFirestore, "registros", docId));
+                    alert(`✅ Código ${cod} eliminado correctamente del registro.`);
+                    // Nota: No necesitamos llamar a renderTable() aquí porque el onSnapshot
+                    // de Firestore detectará el cambio y actualizará la tabla automáticamente.
+                } else {
+                    alert("❌ Error: No se encontró el documento para este código en la base de datos.");
+                }
+            } catch (error) {
+                alert("❌ Error al eliminar el registro: " + error.message);
+            }
+        } else if (password !== null) {
+            alert("❌ Contraseña incorrecta. Operación cancelada.");
+        }
+    };
+
     window.toggleMovido = (cod) => {
         if (movidosLocales.has(cod)) {
             movidosLocales.delete(cod); 
@@ -386,15 +445,21 @@
             movidosLocales.add(cod); 
         }
         localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
+        
+        // Sincronización en la Nube
+        set(ref(dbRT1, 'picking_live/movidos_sincronizados'), [...movidosLocales]);
+        
         renderTable(); 
     };
 
     onSnapshot(collection(dbFirestore, "registros"), (snapshot) => {
         dataRegistro = {};
+        docIdsRegistro = {}; // Limpiamos el objeto de IDs
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             if (data.cod) {
                 dataRegistro[data.cod] = data.pos;
+                docIdsRegistro[data.cod] = docSnap.id; // Guardamos el ID del documento para poder eliminarlo
             }
         });
         renderTable();
@@ -408,6 +473,15 @@
     onValue(ref(dbRT2, 'picking_live/stationsData'), (snapshot) => {
         datosRT2 = snapshot.val() || {};
         renderTable();
+    });
+
+    // Escuchar la sincronización de movimientos
+    onValue(ref(dbRT1, 'picking_live/movidos_sincronizados'), (snapshot) => {
+        if (snapshot.exists()) {
+            movidosLocales = new Set(snapshot.val());
+            localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
+            renderTable();
+        }
     });
 </script>
 </body>
