@@ -396,17 +396,21 @@
         registrosActuales = [];
         tablaBody.innerHTML = '';
         
-        const codigosList = [];
+        // NUEVO: Mapa para contar frecuencias de forma ultrarrápida una sola vez
+        const conteoCodigos = {}; 
+        
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
-            codigosList.push(data.cod);
+            // Sumamos cuántas veces aparece cada código directamente
+            conteoCodigos[data.cod] = (conteoCodigos[data.cod] || 0) + 1;
             registrosActuales.push({ ...data, id: docSnap.id });
         });
 
         // REORDENAMIENTO: Poner los repetidos al inicio de la tabla
         registrosActuales.sort((a, b) => {
-            const esRepetidoA = codigosList.filter(c => c === a.cod).length > 1;
-            const esRepetidoB = codigosList.filter(c => c === b.cod).length > 1;
+            // Buscamos en el mapa directamente, evitando usar .filter()
+            const esRepetidoA = conteoCodigos[a.cod] > 1;
+            const esRepetidoB = conteoCodigos[b.cod] > 1;
 
             if (esRepetidoA && !esRepetidoB) return -1;
             if (!esRepetidoA && esRepetidoB) return 1;
@@ -414,7 +418,8 @@
         });
 
         registrosActuales.forEach((data) => {
-            const esRepetido = codigosList.filter(c => c === data.cod).length > 1;
+            // Verificamos si es repetido usando el mapa, no filtrando el array
+            const esRepetido = conteoCodigos[data.cod] > 1;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
