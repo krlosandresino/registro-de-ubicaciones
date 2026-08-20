@@ -394,7 +394,6 @@
     const q = query(inventarioCol, orderBy("timestamp", "desc"));
     onSnapshot(q, (snapshot) => {
         registrosActuales = [];
-        tablaBody.innerHTML = '';
         
         // NUEVO: Mapa para contar frecuencias de forma ultrarrápida una sola vez
         const conteoCodigos = {}; 
@@ -417,24 +416,29 @@
             return 0; // Si ambos son iguales, conserva el orden por fecha
         });
 
+        // OPTIMIZACIÓN VISUAL: Construimos todo en un string en lugar de renderizar uno por uno
+        let htmlFilas = '';
+
         registrosActuales.forEach((data) => {
-            // Verificamos si es repetido usando el mapa, no filtrando el array
             const esRepetido = conteoCodigos[data.cod] > 1;
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>
-                    <strong class="${esRepetido ? 'repetido-bg' : ''}">${data.cod}</strong>
-                    ${esRepetido ? '<span class="repetido-tag">Repetido</span>' : ''}
-                </td>
-                <td>${data.pos}</td>
-                <td>
-                    <button class="btn-delete-row" onclick="borrarFila('${data.id}')">Borrar</button>
-                </td>
-                <td style="font-size: 0.8rem; color: #64748b; text-align: right;">${data.fechaStr || '-'}</td>
+            htmlFilas += `
+                <tr>
+                    <td>
+                        <strong class="${esRepetido ? 'repetido-bg' : ''}">${data.cod}</strong>
+                        ${esRepetido ? '<span class="repetido-tag">Repetido</span>' : ''}
+                    </td>
+                    <td>${data.pos}</td>
+                    <td>
+                        <button class="btn-delete-row" onclick="borrarFila('${data.id}')">Borrar</button>
+                    </td>
+                    <td style="font-size: 0.8rem; color: #64748b; text-align: right;">${data.fechaStr || '-'}</td>
+                </tr>
             `;
-            tablaBody.appendChild(tr);
         });
+        
+        // Pegamos toda la tabla de una sola vez
+        tablaBody.innerHTML = htmlFilas;
 
         // NUEVO: Re-aplicar el filtro del buscador si se actualiza la base de datos
         inputBuscador.dispatchEvent(new Event('input'));
