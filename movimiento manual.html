@@ -173,10 +173,10 @@
 
         table { 
             width: 100%; 
-            max-width: 800px; 
+            max-width: 900px; 
             margin: 5px auto; 
             border-collapse: collapse; 
-            min-width: 320px; 
+            min-width: 400px; 
         }
 
         th { 
@@ -201,7 +201,8 @@
         th:nth-child(2), td:nth-child(2) { text-align: left; }
         th:nth-child(3), td:nth-child(3) { text-align: center; }
         th:nth-child(4), td:nth-child(4) { text-align: center; }
-        th:nth-child(5), td:nth-child(5) { text-align: right; }
+        th:nth-child(5), td:nth-child(5) { text-align: center; }
+        th:nth-child(6), td:nth-child(6) { text-align: right; }
         
         tr:hover td {
             background-color: #f8fafc;
@@ -347,6 +348,7 @@
         <input type="text" id="inCodigo" placeholder="CÓDIGO" required autocomplete="off">
         <input type="text" id="inPosActual" placeholder="POSICIÓN ACTUAL" required autocomplete="off">
         <input type="text" id="inPosNueva" placeholder="NUEVA POSICION" required autocomplete="off">
+        <input type="text" id="inStockPl" placeholder="STOCK PL(OPCIONAL)" autocomplete="off">
         <button type="submit" class="btn-agregar">➕ Agregar</button>
     </form>
 
@@ -358,11 +360,12 @@
                     <th>CÓDIGO</th>
                     <th>POSICIÓN ACTUAL</th>
                     <th>NUEVA POSICION</th>
+                    <th>STOCK PL</th>
                     <th style="text-align: right;">ACCIÓN</th>
                 </tr>
             </thead>
             <tbody id="tablaBody">
-                <tr><td colspan="5" class="loader">Cargando registros...</td></tr>
+                <tr><td colspan="6" class="loader">Cargando registros...</td></tr>
             </tbody>
         </table>
     </div>
@@ -394,6 +397,7 @@
     const inCodigo = document.getElementById('inCodigo');
     const inPosActual = document.getElementById('inPosActual');
     const inPosNueva = document.getElementById('inPosNueva');
+    const inStockPl = document.getElementById('inStockPl');
 
     // Variable global para almacenar las posiciones nuevas y comprobar duplicados
     let posicionesAsignadas = [];
@@ -406,6 +410,7 @@
     inCodigo.addEventListener('input', forceUpperCase);
     inPosActual.addEventListener('input', forceUpperCase);
     inPosNueva.addEventListener('input', forceUpperCase);
+    inStockPl.addEventListener('input', forceUpperCase);
 
     // Función para agregar un nuevo registro manualmente
     formManual.addEventListener('submit', async (e) => {
@@ -415,6 +420,7 @@
         const codigo = inCodigo.value.trim();
         const posActual = inPosActual.value.trim();
         const posNueva = inPosNueva.value.trim();
+        const stockPl = inStockPl.value.trim();
 
         if(codigo && posActual && posNueva) {
             
@@ -431,6 +437,7 @@
                     codigo: codigo,
                     posicionActual: posActual,
                     moverA: posNueva,
+                    stockPl: stockPl,
                     estadoMovido: false, // Por defecto entra como pendiente
                     fecha: new Date().toISOString()
                 });
@@ -447,7 +454,7 @@
     // Escuchar los datos en tiempo real de la nueva colección
     onSnapshot(collection(dbFirestore, coleccionManual), (snapshot) => {
         if (snapshot.empty) {
-            tablaBody.innerHTML = '<tr><td colspan="5" class="loader">No hay códigos registrados manualmente.</td></tr>';
+            tablaBody.innerHTML = '<tr><td colspan="6" class="loader">No hay códigos registrados manualmente.</td></tr>';
             actualizarContadores(0, 0); 
             posicionesAsignadas = []; // Reinicia el array si está vacío
             return;
@@ -473,6 +480,7 @@
             const cod = data.codigo || 'S/N';
             const posicionActual = data.posicionActual || '-';
             const moverA = data.moverA || '-';
+            const stockPl = data.stockPl || '-';
             const estaMovido = data.estadoMovido === true;
 
             if (!estaMovido) {
@@ -500,6 +508,9 @@
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
                         ${moverA}
                     </span>
+                </td>
+                <td>
+                    <span style="font-weight: 700; color: var(--azul-fuerte);">${stockPl}</span>
                 </td>
                 <td style="text-align: right;">
                     <button class="btn-movido" onclick="toggleMovido('${docId}', ${estaMovido})" 
@@ -576,7 +587,7 @@
         }
     };
 
-    // Función para copiar la tabla a Excel (CÓDIGO, POSICIÓN ACTUAL, NUEVA POSICIÓN)
+    // Función para copiar la tabla a Excel (CÓDIGO, POSICIÓN ACTUAL, NUEVA POSICIÓN, STOCK PL)
     window.copiarAExcel = () => {
         const tabla = document.querySelector('table');
         let excelData = '';
@@ -588,10 +599,11 @@
             // Si es la fila de "Cargando registros...", la omitimos
             if (row.cells.length === 1) continue; 
             
-            // Extraemos solo las columnas 1 (Código), 2 (Pos Actual) y 3 (Pos Nueva)
+            // Extraemos solo las columnas 1 (Código), 2 (Pos Actual), 3 (Pos Nueva) y 4 (Stock PL)
             rowData.push(row.cells[1].innerText.trim());
             rowData.push(row.cells[2].innerText.trim());
             rowData.push(row.cells[3].innerText.trim());
+            rowData.push(row.cells[4].innerText.trim());
             
             excelData += rowData.join('\t') + '\n';
         }
