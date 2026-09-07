@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🔄 Movimientos Manuales</title>
+    <style>
+        :root { 
+            --azul-fuerte: #1e40af; 
+            --azul-medio: #3b82f6; 
+            --azul-claro: #eff6ff;
+            --blanco: #ffffff;
+            --gris-borde: #e2e8f0;
+            --rojo-error: #ef4444;
+            --verde-exito: #10b981;
+            --gris-texto: #64748b;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b;
+            display: flex; 
+            justify-content: center; 
+            padding: 10px; 
+            margin: 0;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container { 
+            background: var(--blanco); 
+            padding: 1.25rem; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); 
+            width: 100%; 
+            max-width: 900px; 
+            border: 1px solid var(--gris-borde);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+        }
+
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 15px; 
+            border-bottom: 2px solid var(--azul-claro); 
+            padding-bottom: 15px; 
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .header h1 { 
+            color: var(--azul-fuerte); 
+            margin: 0; 
+            font-size: 1.4rem; 
+            letter-spacing: -0.5px; 
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 10px;
+            font-size: 0.8rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .stats span {
+            background: var(--azul-claro);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #bfdbfe;
+            color: var(--azul-fuerte);
+            font-weight: 700;
+        }
+
+        .btn-eliminar-todos {
+            background: #fee2e2;
+            color: var(--rojo-error);
+            border: 1px solid #fca5a5;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-eliminar-todos:hover {
+            background: var(--rojo-error);
+            color: white;
+        }
+
+        .btn-copiar {
+            background: #e0f2fe;
+            color: var(--azul-fuerte);
+            border: 1px solid #7dd3fc;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-copiar:hover {
+            background: var(--azul-medio);
+            color: white;
+        }
+
+        /* Formulario de ingreso manual */
+        .form-manual {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--gris-borde);
+        }
+
+        .form-manual input {
+            flex: 1;
+            min-width: 120px;
+            padding: 8px 12px;
+            border: 1px solid var(--gris-borde);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .form-manual input:focus {
+            border-color: var(--azul-medio);
+            box-shadow: 0 0 0 2px var(--azul-claro);
+        }
+
+        .btn-agregar {
+            background: var(--azul-fuerte);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .btn-agregar:hover {
+            background: #172554;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+        }
+
+        table { 
+            width: 100%; 
+            max-width: 800px; 
+            margin: 5px auto; 
+            border-collapse: collapse; 
+            min-width: 320px; 
+        }
+
+        th { 
+            font-size: 0.75rem; 
+            color: var(--azul-medio); 
+            border-bottom: 2px solid var(--azul-claro); 
+            padding: 8px 6px; 
+            position: sticky;
+            top: 0;
+            background: var(--blanco);
+            z-index: 1;
+        }
+
+        td { 
+            padding: 8px 6px; 
+            border-bottom: 1px solid #f1f5f9; 
+            font-size: 0.85rem; 
+            vertical-align: middle;
+        }
+
+        th:nth-child(1), td:nth-child(1) { text-align: center; width: 40px; }
+        th:nth-child(2), td:nth-child(2) { text-align: left; }
+        th:nth-child(3), td:nth-child(3) { text-align: center; }
+        th:nth-child(4), td:nth-child(4) { text-align: center; }
+        th:nth-child(5), td:nth-child(5) { text-align: right; }
+        
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        .code-cell {
+            font-weight: 800;
+            color: var(--azul-fuerte);
+        }
+
+        .loc-registro {
+            color: #475569;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .loc-lectura {
+            color: var(--azul-fuerte);
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            background: var(--azul-claro);
+            padding: 3px 8px;
+            border-radius: 6px;
+            flex-wrap: wrap;
+            border: 1px solid #bfdbfe;
+        }
+
+        .btn-movido {
+            background: var(--azul-medio);
+            color: white;
+            border: none;
+            padding: 6px 4px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 125px; 
+            min-width: 125px; 
+            text-align: center;
+            box-sizing: border-box;
+            display: inline-block;
+            white-space: nowrap; 
+        }
+
+        .btn-movido:hover {
+            background: var(--azul-fuerte);
+        }
+
+        .btn-eliminar {
+            background: #fee2e2;
+            color: var(--rojo-error);
+            border: 1px solid #fca5a5;
+            padding: 5px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-eliminar:hover {
+            background: var(--rojo-error);
+            color: white;
+        }
+
+        tr.is-moved td {
+            opacity: 0.6;
+            background-color: #f8fafc;
+        }
+
+        tr.is-moved .code-cell {
+            text-decoration: line-through;
+            color: var(--gris-texto);
+        }
+
+        tr.is-moved .btn-movido {
+            background: var(--verde-exito);
+        }
+        
+        tr.is-moved .btn-movido:hover {
+            background: var(--rojo-error);
+            color: white;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 30px;
+            color: var(--azul-medio);
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        @media (max-width: 600px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .stats {
+                width: 100%;
+                justify-content: space-between;
+                margin-top: 5px;
+            }
+            .btn-eliminar-todos { width: 100%; margin-top: 5px; }
+            .btn-copiar { width: 100%; margin-top: 5px; }
+            .form-manual { flex-direction: column; }
+            th { font-size: 0.65rem; padding: 8px 2px; }
+            td { font-size: 0.75rem; padding: 6px 2px; }
+            .btn-movido { width: 105px; min-width: 105px; font-size: 0.65rem; }
+            .loc-lectura { padding: 2px 4px; font-size: 0.70rem; }
+            .btn-eliminar { padding: 4px 6px; font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🔄 Panel de Movimientos Manuales</h1>
+        <div class="stats">
+            <span id="pendientesCount">Pendientes: 0</span>
+            <span id="movidosCount" style="color: var(--verde-exito); border-color: #bbf7d0; background: #f0fdf4;">Movidos: 0</span>
+            <button class="btn-copiar" onclick="copiarAExcel()" title="Copiar tabla para Excel">📋 Copiar a Excel</button>
+            <button class="btn-eliminar-todos" onclick="eliminarTodosLosRegistros()" title="Eliminar TODOS los registros de la lista">🗑️ Limpiar Todo</button>
+        </div>
+    </div>
+
+    <!-- Formulario para ingreso manual -->
+    <form id="formManual" class="form-manual">
+        <input type="text" id="inCodigo" placeholder="CÓDIGO" required autocomplete="off">
+        <input type="text" id="inPosActual" placeholder="POSICIÓN ACTUAL" required autocomplete="off">
+        <input type="text" id="inPosNueva" placeholder="NUEVA POSICION" required autocomplete="off">
+        <button type="submit" class="btn-agregar">➕ Agregar</button>
+    </form>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px; text-align: center;">🗑️</th>
+                    <th>CÓDIGO</th>
+                    <th>POSICIÓN ACTUAL</th>
+                    <th>NUEVA POSICION</th>
+                    <th style="text-align: right;">ACCIÓN</th>
+                </tr>
+            </thead>
+            <tbody id="tablaBody">
+                <tr><td colspan="5" class="loader">Cargando registros...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, doc, deleteDoc, addDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // ÚNICAMENTE LA CONEXIÓN A TU PROYECTO PRINCIPAL
+    const configRegistro = {
+        apiKey: "AIzaSyBDTUUcNv0YYEE0U_TqpyEAuqn9TV9kFqo",
+        authDomain: "ubicaciones-6afcd.firebaseapp.com",
+        projectId: "ubicaciones-6afcd"
+    };
+
+    const appRegistro = initializeApp(configRegistro, "appRegistro");
+    const dbFirestore = getFirestore(appRegistro);
+    
+    // Nueva colección independiente para no afectar tus otros procesos
+    const coleccionManual = "movimientos_manuales"; 
+
+    const tablaBody = document.getElementById('tablaBody');
+    const pendientesCount = document.getElementById('pendientesCount');
+    const movidosCount = document.getElementById('movidosCount');
+    const formManual = document.getElementById('formManual');
+    
+    // Referencias a los inputs
+    const inCodigo = document.getElementById('inCodigo');
+    const inPosActual = document.getElementById('inPosActual');
+    const inPosNueva = document.getElementById('inPosNueva');
+
+    // Variable global para almacenar las posiciones nuevas y comprobar duplicados
+    let posicionesAsignadas = [];
+
+    // Función para forzar mayúsculas en los inputs automáticamente
+    const forceUpperCase = (e) => {
+        e.target.value = e.target.value.toUpperCase();
+    };
+
+    inCodigo.addEventListener('input', forceUpperCase);
+    inPosActual.addEventListener('input', forceUpperCase);
+    inPosNueva.addEventListener('input', forceUpperCase);
+
+    // Función para agregar un nuevo registro manualmente
+    formManual.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Se obtiene el valor y se asegura de que no haya espacios en blanco extra
+        const codigo = inCodigo.value.trim();
+        const posActual = inPosActual.value.trim();
+        const posNueva = inPosNueva.value.trim();
+
+        if(codigo && posActual && posNueva) {
+            
+            // Validar si la nueva posición ya existe en la lista actual
+            if (posicionesAsignadas.includes(posNueva)) {
+                const confirmar = confirm(`⚠️ NOTIFICACIÓN: La Nueva Posición "${posNueva}" ya se encuentra asignada a otro registro.\n\n¿Desea guardarla de todos modos?`);
+                if (!confirmar) {
+                    return; // Cancela el registro si el usuario escoge cancelar
+                }
+            }
+
+            try {
+                await addDoc(collection(dbFirestore, coleccionManual), {
+                    codigo: codigo,
+                    posicionActual: posActual,
+                    moverA: posNueva,
+                    estadoMovido: false, // Por defecto entra como pendiente
+                    fecha: new Date().toISOString()
+                });
+                
+                // Limpiar formulario tras guardar
+                formManual.reset();
+                inCodigo.focus();
+            } catch (error) {
+                alert("❌ Error al guardar: " + error.message);
+            }
+        }
+    });
+
+    // Escuchar los datos en tiempo real de la nueva colección
+    onSnapshot(collection(dbFirestore, coleccionManual), (snapshot) => {
+        if (snapshot.empty) {
+            tablaBody.innerHTML = '<tr><td colspan="5" class="loader">No hay códigos registrados manualmente.</td></tr>';
+            actualizarContadores(0, 0); 
+            posicionesAsignadas = []; // Reinicia el array si está vacío
+            return;
+        }
+
+        tablaBody.innerHTML = '';
+        let pendientes = 0;
+        let movidosVisibles = 0; 
+        
+        const documentos = [];
+        snapshot.forEach(docSnap => {
+            documentos.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        // Ordenar por fecha de creación (los más recientes abajo)
+        documentos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+        // Actualiza las posiciones asignadas para la validación del formulario
+        posicionesAsignadas = documentos.map(doc => doc.moverA);
+
+        documentos.forEach(data => {
+            const docId = data.id;
+            const cod = data.codigo || 'S/N';
+            const posicionActual = data.posicionActual || '-';
+            const moverA = data.moverA || '-';
+            const estaMovido = data.estadoMovido === true;
+
+            if (!estaMovido) {
+                pendientes++;
+            } else {
+                movidosVisibles++; 
+            }
+
+            const tr = document.createElement('tr');
+            if (estaMovido) tr.classList.add('is-moved');
+            
+            tr.innerHTML = `
+                <td style="text-align: center;">
+                    <button class="btn-eliminar" onclick="eliminarRegistroIndividual('${docId}', '${cod}')" title="Eliminar Registro">🗑️</button>
+                </td>
+                <td><span class="code-cell">${cod}</span></td>
+                <td>
+                    <span class="loc-registro">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        ${posicionActual}
+                    </span>
+                </td>
+                <td>
+                    <span class="loc-lectura">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                        ${moverA}
+                    </span>
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn-movido" onclick="toggleMovido('${docId}', ${estaMovido})" 
+                        onmouseover="this.innerHTML='${estaMovido ? '↩️ Deshacer' : '🚀 Mover'}'" 
+                        onmouseout="this.innerHTML='${estaMovido ? '✅ Completado' : '🚀 Mover'}'">
+                        ${estaMovido ? '✅ Completado' : '🚀 Mover'}
+                    </button>
+                </td>
+            `;
+            tablaBody.appendChild(tr);
+        });
+
+        actualizarContadores(pendientes, movidosVisibles); 
+    });
+
+    function actualizarContadores(pendientes, movidosVisibles) {
+        pendientesCount.textContent = `Pendientes: ${pendientes}`;
+        movidosCount.textContent = `Movidos: ${movidosVisibles}`; 
+    }
+
+    // Cambiar estado entre Pendiente y Completado directamente en Firestore
+    window.toggleMovido = async (docId, estadoActual) => {
+        try {
+            const docRef = doc(dbFirestore, coleccionManual, docId);
+            await updateDoc(docRef, {
+                estadoMovido: !estadoActual
+            });
+        } catch (error) {
+            console.error("Error al actualizar estado:", error);
+        }
+    };
+
+    // Eliminar un registro individual
+    window.eliminarRegistroIndividual = async (docId, cod) => {
+        const password = prompt(`Va a eliminar el código ${cod} del Registro Manual.\nIngrese la contraseña de seguridad:`);
+        
+        if (password === "Oriflame2026") {
+            try {
+                await deleteDoc(doc(dbFirestore, coleccionManual, docId));
+            } catch (error) {
+                alert("❌ Error al eliminar el registro: " + error.message);
+            }
+        } else if (password !== null) {
+            alert("❌ Contraseña incorrecta. Operación cancelada.");
+        }
+    };
+
+    // Eliminar TODOS los registros
+    window.eliminarTodosLosRegistros = async () => {
+        const password = prompt("⚠️ ATENCIÓN: Va a eliminar TODOS los registros del panel.\nIngrese la contraseña de seguridad para confirmar:");
+        
+        if (password === "Oriflame2026") {
+            if (confirm("¿Está absolutamente seguro de que desea vaciar toda la tabla? Esta acción no se puede deshacer.")) {
+                try {
+                    const querySnapshot = await getDocs(collection(dbFirestore, coleccionManual));
+                    if (querySnapshot.empty) {
+                        alert("No hay registros para eliminar.");
+                        return;
+                    }
+                    
+                    const deletePromises = [];
+                    querySnapshot.forEach((docSnap) => {
+                        deletePromises.push(deleteDoc(doc(dbFirestore, coleccionManual, docSnap.id)));
+                    });
+                    
+                    await Promise.all(deletePromises);
+                    alert("✅ Todos los registros han sido eliminados correctamente.");
+                } catch (error) {
+                    alert("❌ Error al eliminar los registros: " + error.message);
+                }
+            }
+        } else if (password !== null) {
+            alert("❌ Contraseña incorrecta. Operación cancelada.");
+        }
+    };
+
+    // Función para copiar la tabla a Excel (CÓDIGO, POSICIÓN ACTUAL, NUEVA POSICIÓN)
+    window.copiarAExcel = () => {
+        const tabla = document.querySelector('table');
+        let excelData = '';
+        
+        for (let i = 0; i < tabla.rows.length; i++) {
+            const row = tabla.rows[i];
+            let rowData = [];
+            
+            // Si es la fila de "Cargando registros...", la omitimos
+            if (row.cells.length === 1) continue; 
+            
+            // Extraemos solo las columnas 1 (Código), 2 (Pos Actual) y 3 (Pos Nueva)
+            rowData.push(row.cells[1].innerText.trim());
+            rowData.push(row.cells[2].innerText.trim());
+            rowData.push(row.cells[3].innerText.trim());
+            
+            excelData += rowData.join('\t') + '\n';
+        }
+        
+        navigator.clipboard.writeText(excelData).then(() => {
+            alert("✅ Tabla copiada con éxito. Ya puedes pegarla en tu archivo de Excel.");
+        }).catch(err => {
+            console.error('Error al copiar: ', err);
+            alert("❌ No se pudo copiar la tabla al portapapeles.");
+        });
+    };
+</script>
+</body>
+</html>
