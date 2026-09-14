@@ -354,7 +354,8 @@
             return;
         }
 
-        tablaBody.innerHTML = '';
+        // --- INICIO DE OPTIMIZACIÓN DEL DOM (DocumentFragment) ---
+        const fragment = document.createDocumentFragment();
         let pendientes = 0;
         let movidosVisibles = 0; 
 
@@ -398,8 +399,12 @@
                     </button>
                 </td>
             `;
-            tablaBody.appendChild(tr);
+            fragment.appendChild(tr); // Añadimos al fragmento en memoria
         });
+
+        tablaBody.innerHTML = ''; // Limpiamos el cuerpo de la tabla una sola vez
+        tablaBody.appendChild(fragment); // Inyectamos todo el bloque de golpe
+        // --- FIN DE OPTIMIZACIÓN DEL DOM ---
 
         actualizarContadores(pendientes, movidosVisibles); 
     }
