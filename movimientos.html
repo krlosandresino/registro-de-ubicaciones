@@ -312,12 +312,25 @@
     let datosRT2 = {};     
     let dataLecturas = {}; 
     
-    let movidosLocales = new Set(JSON.parse(localStorage.getItem('movidos_estado')) || []);
+    // --- INICIO DE PROTECCIÓN ANTIFALLOS EN LOCALSTORAGE ---
+    let initialMovidos = [];
+    try {
+        initialMovidos = JSON.parse(localStorage.getItem('movidos_estado')) || [];
+    } catch (error) {
+        console.warn("Error leyendo localStorage, se inició un caché limpio.");
+        initialMovidos = [];
+    }
+    let movidosLocales = new Set(initialMovidos);
+    // --- FIN DE PROTECCIÓN ANTIFALLOS EN LOCALSTORAGE ---
+    
+    // Variable para el control de disparos simultáneos (Debounce)
+    let renderTimeout = null;
 
     const tablaBody = document.getElementById('tablaBody');
     const pendientesCount = document.getElementById('pendientesCount');
     const movidosCount = document.getElementById('movidosCount');
 
+    // Función separada para procesar lecturas
     function procesarLecturas() {
         dataLecturas = {};
         const procesarData = (datos) => {
@@ -336,17 +349,29 @@
         procesarData(datosRT2);
     }
 
-    function renderTable() {
-        procesarLecturas();
+    // Función Debounce para agrupar renders
+    function debouncedRenderTable() {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        renderTimeout = setTimeout(() => {
+            renderTable();
+        }, 100); 
+    }
 
+    function renderTable() {
         const codigosRegistro = Object.keys(dataRegistro);
         let codigosConectados = codigosRegistro.filter(cod => dataLecturas[cod] && dataLecturas[cod].size > 0);
 
-        codigosConectados.sort((a, b) => {
-            const posA = String((dataRegistro[a] || []).join(', '));
-            const posB = String((dataRegistro[b] || []).join(', '));
-            return posA.localeCompare(posB, undefined, { numeric: true, sensitivity: 'base' });
+        // --- INICIO OPTIMIZACIÓN SORT CACHING ---
+        // Pre-calculamos los textos de las posiciones para no unirlos múltiples veces por cada código
+        const posCache = {};
+        codigosConectados.forEach(cod => {
+            posCache[cod] = String((dataRegistro[cod] || []).join(', '));
         });
+
+        codigosConectados.sort((a, b) => {
+            return posCache[a].localeCompare(posCache[b], undefined, { numeric: true, sensitivity: 'base' });
+        });
+        // --- FIN OPTIMIZACIÓN SORT CACHING ---
 
         if (codigosConectados.length === 0) {
             tablaBody.innerHTML = '<tr><td colspan="5" class="loader">No hay códigos coincidentes entre Registro y Lecturas.</td></tr>';
@@ -354,14 +379,12 @@
             return;
         }
 
-        // --- INICIO DE OPTIMIZACIÓN DEL DOM (DocumentFragment) ---
         const fragment = document.createDocumentFragment();
         let pendientes = 0;
         let movidosVisibles = 0; 
 
         codigosConectados.forEach(cod => {
-            // Unimos todas las posiciones registradas con un separador
-            const posicionActual = dataRegistro[cod].join(' - '); 
+            const posicionActual = posCache[cod]; // Reutilizamos el texto ya cacheado
             const moverA = [...dataLecturas[cod]].join(', ');
             const estaMovido = movidosLocales.has(cod);
 
@@ -399,12 +422,11 @@
                     </button>
                 </td>
             `;
-            fragment.appendChild(tr); // Añadimos al fragmento en memoria
+            fragment.appendChild(tr); 
         });
 
-        tablaBody.innerHTML = ''; // Limpiamos el cuerpo de la tabla una sola vez
-        tablaBody.appendChild(fragment); // Inyectamos todo el bloque de golpe
-        // --- FIN DE OPTIMIZACIÓN DEL DOM ---
+        tablaBody.innerHTML = ''; 
+        tablaBody.appendChild(fragment); 
 
         actualizarContadores(pendientes, movidosVisibles); 
     }
@@ -421,7 +443,6 @@
             try {
                 const docIds = docIdsRegistro[cod];
                 if (docIds && docIds.length > 0) {
-                    // Mapear todas las promesas de eliminación si hay múltiples registros del mismo código
                     const deletePromises = docIds.map(id => deleteDoc(doc(dbFirestore, "registros", id)));
                     await Promise.all(deletePromises);
                     
@@ -453,7 +474,7 @@
         
         set(ref(dbRT1, 'picking_live/movidos_sincronizados'), [...movidosLocales]);
         
-        renderTable(); 
+        debouncedRenderTable(); 
     };
 
     onSnapshot(collection(dbFirestore, "registros"), (snapshot) => {
@@ -462,18 +483,15 @@
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             if (data.cod) {
-                // Se preparan arreglos para guardar múltiples ubicaciones de un mismo código
                 if (!dataRegistro[data.cod]) {
                     dataRegistro[data.cod] = [];
                     docIdsRegistro[data.cod] = [];
                 }
                 
-                // Evita mostrar posiciones duplicadas visualmente si registraron la misma dos veces
                 if (!dataRegistro[data.cod].includes(data.pos)) {
                     dataRegistro[data.cod].push(data.pos);
                 }
                 
-                // Guarda todos los IDs para poder eliminarlos completamente si se requiere
                 docIdsRegistro[data.cod].push(docSnap.id); 
             }
         });
@@ -493,17 +511,19 @@
             set(ref(dbRT1, 'picking_live/movidos_sincronizados'), [...movidosLocales]);
         }
 
-        renderTable();
+        debouncedRenderTable();
     });
 
     onValue(ref(dbRT1, 'picking_live/stationsData'), (snapshot) => {
         datosRT1 = snapshot.val() || {};
-        renderTable();
+        procesarLecturas(); 
+        debouncedRenderTable(); 
     });
 
     onValue(ref(dbRT2, 'picking_live/stationsData'), (snapshot) => {
         datosRT2 = snapshot.val() || {};
-        renderTable();
+        procesarLecturas(); 
+        debouncedRenderTable(); 
     });
 
     onValue(ref(dbRT1, 'picking_live/movidos_sincronizados'), (snapshot) => {
@@ -513,7 +533,7 @@
             movidosLocales = new Set(); 
         }
         localStorage.setItem('movidos_estado', JSON.stringify([...movidosLocales]));
-        renderTable();
+        debouncedRenderTable();
     });
 </script>
 </body>
