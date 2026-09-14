@@ -416,13 +416,10 @@
             return 0; // Si ambos son iguales, conserva el orden por fecha
         });
 
-        // OPTIMIZACIÓN VISUAL: Construimos todo en un string en lugar de renderizar uno por uno
-        let htmlFilas = '';
-
-        registrosActuales.forEach((data) => {
+        // OPTIMIZACIÓN VISUAL: Renderizado más rápido en memoria usando map y join en lugar de concatenar strings en un bucle
+        tablaBody.innerHTML = registrosActuales.map((data) => {
             const esRepetido = conteoCodigos[data.cod] > 1;
-
-            htmlFilas += `
+            return `
                 <tr>
                     <td>
                         <strong class="${esRepetido ? 'repetido-bg' : ''}">${data.cod}</strong>
@@ -435,10 +432,7 @@
                     <td style="font-size: 0.8rem; color: #64748b; text-align: right;">${data.fechaStr || '-'}</td>
                 </tr>
             `;
-        });
-        
-        // Pegamos toda la tabla de una sola vez
-        tablaBody.innerHTML = htmlFilas;
+        }).join('');
 
         // NUEVO: Re-aplicar el filtro del buscador si se actualiza la base de datos
         inputBuscador.dispatchEvent(new Event('input'));
@@ -554,8 +548,12 @@
         registrosActuales.forEach(item => {
             texto += `${item.cod}\t${item.pos}\t${item.fechaStr || ''}\n`;
         });
+        
+        // MANEJO DE ERRORES AL COPIAR: Se agrega el bloque catch
         navigator.clipboard.writeText(texto).then(() => {
             alert("📋 Tabla copiada.");
+        }).catch(err => {
+            alert("❌ Error al copiar. El navegador bloqueó el acceso al portapapeles: " + err);
         });
     };
 
