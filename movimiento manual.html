@@ -399,8 +399,9 @@
     const inPosNueva = document.getElementById('inPosNueva');
     const inStockPl = document.getElementById('inStockPl');
 
-    // Variable global para almacenar las posiciones nuevas y comprobar duplicados
+    // Variable global para almacenar las posiciones nuevas y códigos (comprobar duplicados)
     let posicionesAsignadas = [];
+    let codigosPendientes = [];
 
     // Función para forzar mayúsculas en los inputs automáticamente
     const forceUpperCase = (e) => {
@@ -424,8 +425,17 @@
 
         if(codigo && posActual && posNueva) {
             
+            // Validar si el CÓDIGO ya existe en la lista de PENDIENTES
+            if (codigosPendientes.includes(codigo)) {
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Vibración de error
+                alert(`⚠️ NOTIFICACIÓN: El Código "${codigo}" ya se encuentra en la lista de pendientes.`);
+                inCodigo.focus();
+                return;
+            }
+
             // Validar si la nueva posición ya existe en la lista actual
             if (posicionesAsignadas.includes(posNueva)) {
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Vibración de alerta
                 const confirmar = confirm(`⚠️ NOTIFICACIÓN: La Nueva Posición "${posNueva}" ya se encuentra asignada a otro registro.\n\n¿Desea guardarla de todos modos?`);
                 if (!confirmar) {
                     return; // Cancela el registro si el usuario escoge cancelar
@@ -446,6 +456,7 @@
                 formManual.reset();
                 inCodigo.focus();
             } catch (error) {
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 alert("❌ Error al guardar: " + error.message);
             }
         }
@@ -457,6 +468,7 @@
             tablaBody.innerHTML = '<tr><td colspan="6" class="loader">No hay códigos registrados manualmente.</td></tr>';
             actualizarContadores(0, 0); 
             posicionesAsignadas = []; // Reinicia el array si está vacío
+            codigosPendientes = [];
             return;
         }
 
@@ -469,11 +481,17 @@
             documentos.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // Ordenar por fecha de creación (los más recientes abajo)
-        documentos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+        // Ordenar primero por estado (Pendientes arriba) y luego por fecha
+        documentos.sort((a, b) => {
+            if (a.estadoMovido === b.estadoMovido) {
+                return new Date(a.fecha) - new Date(b.fecha); 
+            }
+            return a.estadoMovido ? 1 : -1; 
+        });
 
-        // Actualiza las posiciones asignadas para la validación del formulario
+        // Actualiza las posiciones asignadas y códigos pendientes para la validación del formulario
         posicionesAsignadas = documentos.map(doc => doc.moverA);
+        codigosPendientes = documentos.filter(doc => doc.estadoMovido === false).map(doc => doc.codigo);
 
         documentos.forEach(data => {
             const docId = data.id;
@@ -534,12 +552,14 @@
     // Cambiar estado entre Pendiente y Completado directamente en Firestore
     window.toggleMovido = async (docId, estadoActual) => {
         try {
+            if (navigator.vibrate) navigator.vibrate(50); // Vibración corta al completar/deshacer
             const docRef = doc(dbFirestore, coleccionManual, docId);
             await updateDoc(docRef, {
                 estadoMovido: !estadoActual
             });
         } catch (error) {
             console.error("Error al actualizar estado:", error);
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         }
     };
 
@@ -550,45 +570,62 @@
         if (password === "Oriflame2026") {
             try {
                 await deleteDoc(doc(dbFirestore, coleccionManual, docId));
+                if (navigator.vibrate) navigator.vibrate(50); // Confirmación de eliminado
             } catch (error) {
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 alert("❌ Error al eliminar el registro: " + error.message);
             }
         } else if (password !== null) {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             alert("❌ Contraseña incorrecta. Operación cancelada.");
         }
     };
 
-    // Eliminar TODOS los registros
+    // Eliminar TODOS los registros (Modificado con Confirmación Condicional)
     window.eliminarTodosLosRegistros = async () => {
-        const password = prompt("⚠️ ATENCIÓN: Va a eliminar TODOS los registros del panel.\nIngrese la contraseña de seguridad para confirmar:");
-        
-        if (password === "Oriflame2026") {
-            if (confirm("¿Está absolutamente seguro de que desea vaciar toda la tabla? Esta acción no se puede deshacer.")) {
-                try {
-                    const querySnapshot = await getDocs(collection(dbFirestore, coleccionManual));
-                    if (querySnapshot.empty) {
-                        alert("No hay registros para eliminar.");
-                        return;
-                    }
-                    
+        try {
+            // 1. Verificamos primero si hay registros en la base de datos
+            const querySnapshot = await getDocs(collection(dbFirestore, coleccionManual));
+            
+            // Si la colección está vacía, avisamos y salimos sin pedir contraseña
+            if (querySnapshot.empty) {
+                alert("ℹ️ No hay registros en el panel para eliminar.");
+                return;
+            }
+
+            // 2. Si hay registros, entonces sí pedimos la contraseña
+            const password = prompt("⚠️ ATENCIÓN: Va a eliminar TODOS los registros del panel.\nIngrese la contraseña de seguridad para confirmar:");
+            
+            if (password === "Oriflame2026") {
+                if (confirm("¿Está absolutamente seguro de que desea vaciar toda la tabla? Esta acción no se puede deshacer.")) {
                     const deletePromises = [];
                     querySnapshot.forEach((docSnap) => {
                         deletePromises.push(deleteDoc(doc(dbFirestore, coleccionManual, docSnap.id)));
                     });
                     
                     await Promise.all(deletePromises);
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibración exitosa larga
                     alert("✅ Todos los registros han sido eliminados correctamente.");
-                } catch (error) {
-                    alert("❌ Error al eliminar los registros: " + error.message);
                 }
+            } else if (password !== null) {
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                alert("❌ Contraseña incorrecta. Operación cancelada.");
             }
-        } else if (password !== null) {
-            alert("❌ Contraseña incorrecta. Operación cancelada.");
+        } catch (error) {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            alert("❌ Error al verificar/eliminar los registros: " + error.message);
         }
     };
 
     // Función para copiar la tabla a Excel (CÓDIGO, POSICIÓN ACTUAL, NUEVA POSICIÓN, STOCK PL)
     window.copiarAExcel = () => {
+        const btnCopiar = document.querySelector('.btn-copiar');
+        const textoOriginal = btnCopiar.innerHTML;
+        
+        // CONGELAR EL ANCHO para evitar que el encabezado salte
+        const anchoActual = btnCopiar.offsetWidth;
+        btnCopiar.style.width = anchoActual + 'px';
+
         const tabla = document.querySelector('table');
         let excelData = '';
         
@@ -609,9 +646,24 @@
         }
         
         navigator.clipboard.writeText(excelData).then(() => {
-            alert("✅ Tabla copiada con éxito. Ya puedes pegarla en tu archivo de Excel.");
+            if (navigator.vibrate) navigator.vibrate(50); // Vibración rápida al copiar
+            
+            // Cambiamos el texto del botón temporalmente en lugar del alert molesto
+            btnCopiar.innerHTML = "✅ ¡Copiado!";
+            
+            setTimeout(() => {
+                btnCopiar.innerHTML = textoOriginal;
+                btnCopiar.style.width = ''; // Restauramos el comportamiento de ancho automático
+            }, 2000); // Regresa a la normalidad después de 2 segundos
+            
         }).catch(err => {
             console.error('Error al copiar: ', err);
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Error al copiar
+            
+            // Si falla, también debemos restaurar el botón
+            btnCopiar.innerHTML = textoOriginal;
+            btnCopiar.style.width = ''; 
+            
             alert("❌ No se pudo copiar la tabla al portapapeles.");
         });
     };
