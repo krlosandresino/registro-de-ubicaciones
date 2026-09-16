@@ -451,8 +451,12 @@
             if (codigosBase.length > 0 && !codigosBase.includes(cod)) {
                 alertarCodigoNoExiste();
                 inputCod.value = '';
-                inputPos.value = '';
-                inputPos.readOnly = true;
+                
+                // Limpiar posición SOLO si es ingreso manual
+                if (inputPos.readOnly === false) {
+                    inputPos.value = '';
+                }
+                
                 inputCod.focus();
                 return; // Se detiene el proceso, no se guarda en la tabla
             }
@@ -470,9 +474,14 @@
                     fechaStr,
                     timestamp: Date.now()
                 });
+                
                 inputCod.value = '';
-                inputPos.value = '';
-                inputPos.readOnly = true;
+                
+                // Limpiar posición SOLO si es ingreso manual
+                if (inputPos.readOnly === false) {
+                    inputPos.value = '';
+                }
+                
                 inputCod.focus();
             } catch (e) {
                 alert("Error: " + e.message);
@@ -575,9 +584,16 @@
         });
     });
 
+    // --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
     inputCod.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && inputCod.value.trim() !== "") {
-            menuUbicaciones.style.display = 'block';
+            if (inputPos.value.trim() !== "") {
+                // Si la posición YA está llena, registra directo
+                registrar();
+            } else {
+                // Si la posición está vacía, te abre el menú para que la elijas
+                menuUbicaciones.style.display = 'block';
+            }
         }
     });
 
