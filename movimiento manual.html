@@ -372,8 +372,9 @@
 </div>
 
 <script type="module">
+    // IMPORTACIÓN ACTUALIZADA CON writeBatch
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, doc, deleteDoc, addDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, doc, deleteDoc, addDoc, updateDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // ÚNICAMENTE LA CONEXIÓN A TU PROYECTO PRINCIPAL
     const configRegistro = {
@@ -581,7 +582,7 @@
         }
     };
 
-    // Eliminar TODOS los registros (Modificado con Confirmación Condicional)
+    // Eliminar TODOS los registros (Actualizado usando writeBatch)
     window.eliminarTodosLosRegistros = async () => {
         try {
             // 1. Verificamos primero si hay registros en la base de datos
@@ -598,12 +599,17 @@
             
             if (password === "Oriflame2026") {
                 if (confirm("¿Está absolutamente seguro de que desea vaciar toda la tabla? Esta acción no se puede deshacer.")) {
-                    const deletePromises = [];
+                    
+                    // Implementación con BATCH: Elimina de un solo golpe (Atómico)
+                    const batch = writeBatch(dbFirestore);
+                    
                     querySnapshot.forEach((docSnap) => {
-                        deletePromises.push(deleteDoc(doc(dbFirestore, coleccionManual, docSnap.id)));
+                        batch.delete(doc(dbFirestore, coleccionManual, docSnap.id));
                     });
                     
-                    await Promise.all(deletePromises);
+                    // Se ejecuta el lote completo
+                    await batch.commit();
+                    
                     if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibración exitosa larga
                     alert("✅ Todos los registros han sido eliminados correctamente.");
                 }
