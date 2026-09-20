@@ -309,6 +309,18 @@
             height: 14px;
         }
 
+        /* Novedad: Etiqueta para campos sin dato */
+        .badge-sin-dato {
+            background: #f1f5f9;
+            color: var(--gris-texto);
+            font-size: 0.70rem;
+            padding: 3px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--gris-borde);
+            font-weight: 600;
+            display: inline-block;
+        }
+
         @media (max-width: 600px) {
             .header {
                 flex-direction: column;
@@ -499,8 +511,12 @@
             const cod = data.codigo || 'S/N';
             const posicionActual = data.posicionActual || '-';
             const moverA = data.moverA || '-';
-            const stockPl = data.stockPl || '-';
             const estaMovido = data.estadoMovido === true;
+
+            // Validación visual para Stock PL
+            const stockPlHtml = (data.stockPl && data.stockPl.trim() !== '') 
+                ? `<span style="font-weight: 700; color: var(--azul-fuerte);">${data.stockPl}</span>` 
+                : `<span class="badge-sin-dato">N/A</span>`;
 
             if (!estaMovido) {
                 pendientes++;
@@ -529,7 +545,7 @@
                     </span>
                 </td>
                 <td>
-                    <span style="font-weight: 700; color: var(--azul-fuerte);">${stockPl}</span>
+                    ${stockPlHtml}
                 </td>
                 <td style="text-align: right;">
                     <button class="btn-movido" onclick="toggleMovido('${docId}', ${estaMovido})" 
