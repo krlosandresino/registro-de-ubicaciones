@@ -494,6 +494,7 @@
         inputFile.click();
     };
 
+    // LÓGICA DE ACTUALIZACIÓN DELTA PARA LA LISTA DE CÓDIGOS VÁLIDOS
     inputFile.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -519,9 +520,19 @@
                 });
 
                 if (nuevosCodigos.length > 0) {
-                    // setDoc sobreescribe el documento borrando la data antigua automáticamente
-                    await setDoc(baseRef, { lista: nuevosCodigos });
-                    alert(`✅ Base actualizada. Se cargaron ${nuevosCodigos.length} códigos válidos.`);
+                    // Extraer los únicos para que no haya duplicados
+                    const codigosUnicosExcel = Array.from(new Set(nuevosCodigos));
+                    
+                    // Lógica de Comparación:
+                    const agregados = codigosUnicosExcel.filter(c => !codigosBase.includes(c));
+                    const eliminados = codigosBase.filter(c => !codigosUnicosExcel.includes(c));
+
+                    if (agregados.length === 0 && eliminados.length === 0) {
+                        alert("✅ ¡Todo está al día! La lista de códigos no tiene cambios.");
+                    } else {
+                        await setDoc(baseRef, { lista: codigosUnicosExcel });
+                        alert(`✅ Base actualizada.\n- Códigos nuevos: ${agregados.length}\n- Códigos antiguos eliminados: ${eliminados.length}\n- Total activos: ${codigosUnicosExcel.length}`);
+                    }
                 } else {
                     alert("❌ No se encontró la columna 'Código Producto' o está vacía.");
                 }
