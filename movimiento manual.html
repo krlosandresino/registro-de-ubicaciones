@@ -548,7 +548,7 @@
                     ${stockPlHtml}
                 </td>
                 <td style="text-align: right;">
-                    <button class="btn-movido" onclick="toggleMovido('${docId}', ${estaMovido})" 
+                    <button class="btn-movido" onclick="toggleMovido('${docId}', ${estaMovido}, this)" 
                         onmouseover="this.innerHTML='${estaMovido ? '↩️ Deshacer' : '🚀 Mover'}'" 
                         onmouseout="this.innerHTML='${estaMovido ? '✅ Completado' : '🚀 Mover'}'">
                         ${estaMovido ? '✅ Completado' : '🚀 Mover'}
@@ -566,10 +566,36 @@
         movidosCount.textContent = `Movidos: ${movidosVisibles}`; 
     }
 
-    // Cambiar estado entre Pendiente y Completado directamente en Firestore
-    window.toggleMovido = async (docId, estadoActual) => {
+    // Cambiar estado entre Pendiente y Completado directamente en Firestore con Animación
+    window.toggleMovido = async (docId, estadoActual, btnElement) => {
         try {
             if (navigator.vibrate) navigator.vibrate(50); // Vibración corta al completar/deshacer
+
+            // --- INICIO DE LA ANIMACIÓN VISUAL ---
+            if (btnElement) {
+                // Buscamos toda la fila (tr) a la que pertenece el botón
+                const fila = btnElement.closest('tr');
+                
+                // Le damos una transición suave de 0.4 segundos
+                fila.style.transition = 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                
+                if (!estadoActual) {
+                    // Si se está marcando como Completado (va para abajo):
+                    fila.style.transform = 'translateX(50px)';
+                    fila.style.opacity = '0';
+                    fila.style.backgroundColor = '#dcfce7'; 
+                } else {
+                    // Si se está Deshaciendo (va para arriba):
+                    fila.style.transform = 'translateX(-50px)';
+                    fila.style.opacity = '0';
+                    fila.style.backgroundColor = '#fef2f2'; 
+                }
+
+                // Pausamos la ejecución por 400 milisegundos (0.4s) para dejar que el usuario vea la animación
+                await new Promise(resolve => setTimeout(resolve, 400));
+            }
+            // --- FIN DE LA ANIMACIÓN ---
+
             const docRef = doc(dbFirestore, coleccionManual, docId);
             await updateDoc(docRef, {
                 estadoMovido: !estadoActual
