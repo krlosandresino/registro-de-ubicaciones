@@ -249,9 +249,17 @@
             h2 { font-size: 1.6rem; }
             .table-container { max-height: 450px; } /* Más alto en pantallas grandes */
         }
+        @keyframes spinUpdate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
+<!-- PANTALLA DE BLOQUEO DE ACTUALIZACIÓN -->
+<div id="updateOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.95); backdrop-filter:blur(10px); z-index:99999; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white; pointer-events:all;">
+    <div style="border:6px solid rgba(255,255,255,0.1); border-top:6px solid #3b82f6; border-radius:50%; width:60px; height:60px; animation:spinUpdate 1s linear infinite; margin-bottom:20px;"></div>
+    <h2 style="margin:0; font-size:24px; color:#60a5fa; font-weight:bold; letter-spacing:1px;">RECIBIENDO ACTUALIZACIONES</h2>
+    <p style="color:#94a3b8; font-size:15px; margin-top:10px; max-width:80%;">Por favor, espera un momento. El sistema se desbloqueará automáticamente.</p>
+</div>
 
 <div class="card">
     <div class="header">
@@ -284,7 +292,7 @@
                         <button type="button" onclick="seleccionarPos('T02E')">T02E</button>
                     </div>
                 </div>
-                <button type="button" class="btn-manual" onclick="activarManual()">⌨️ INGRESO MANUAL</button>
+                <button type="button" class="btn-manual" onclick="activarManual()">⌨️️ INGRESO MANUAL</button>
             </div>
         </div>
     </div>
@@ -647,6 +655,16 @@
     if ('speechSynthesis' in window) {
         window.speechSynthesis.getVoices();
     }
+
+    // --- Lógica de Pantalla de Bloqueo por Actualización ---
+    onSnapshot(doc(db, "configuracion", "estado_sistema"), (docSnap) => {
+        if (docSnap.exists() && docSnap.data().actualizando === true) {
+            document.getElementById('updateOverlay').style.display = 'flex';
+        } else {
+            document.getElementById('updateOverlay').style.display = 'none';
+        }
+    });
+
 </script>
 
 </body>
