@@ -494,10 +494,12 @@
             documentos.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // Ordenar primero por estado (Pendientes arriba) y luego por fecha
+        // Ordenar primero por estado (Pendientes arriba) y luego por POSICIÓN ACTUAL de menor a mayor
         documentos.sort((a, b) => {
             if (a.estadoMovido === b.estadoMovido) {
-                return new Date(a.fecha) - new Date(b.fecha); 
+                const posA = (a.posicionActual || '').toString();
+                const posB = (b.posicionActual || '').toString();
+                return posA.localeCompare(posB, undefined, { numeric: true, sensitivity: 'base' });
             }
             return a.estadoMovido ? 1 : -1; 
         });
