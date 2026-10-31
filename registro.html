@@ -12,6 +12,7 @@
             --azul-medio: #3b82f6; 
             --azul-claro: #eff6ff;
             --blanco: #ffffff;
+            --gris-borde: #e2eebd;
             --gris-borde: #e2e8f0;
             --rojo-error: #ef4444;
             --amarillo-aviso: #fef08a;
@@ -572,9 +573,9 @@
 
     document.getElementById('btnCopiar').onclick = () => {
         if (registrosActuales.length === 0) return alert("No hay datos para copiar.");
-        let texto = "CÓDIGO\tPOSICIÓN\tFECHA\n";
+        let texto = "BODEGA\tBODEGA\tRATIO\tCODIGO\tESTACION\tPOSICION\tRATIO\n";
         registrosActuales.forEach(item => {
-            texto += `${item.cod}\t${item.pos}\t${item.fechaStr || ''}\n`;
+            texto += `14\t14\t1\t${item.cod}\t0\t${item.pos}\t1\n`;
         });
         
         // MANEJO DE ERRORES AL COPIAR: Se agrega el bloque catch
