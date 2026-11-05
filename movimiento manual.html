@@ -170,6 +170,11 @@
             background: #172554;
         }
 
+        .btn-agregar:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .table-container {
             width: 100%;
             overflow-x: auto;
@@ -495,7 +500,7 @@
         <input type="text" id="inCodigo" placeholder="CÓDIGO" required autocomplete="off">
         <input type="text" id="inPosActual" placeholder="POSICIÓN ACTUAL" required autocomplete="off">
         <input type="text" id="inPosNueva" placeholder="NUEVA POSICION" required autocomplete="off">
-        <input type="text" id="inStockPl" placeholder="Stock PL(automático)" readonly autocomplete="off">
+        <input type="text" id="inStockPl" placeholder="STOCK PL(OPCIONAL)" readonly autocomplete="off">
         <button type="submit" class="btn-agregar">➕ Agregar</button>
     </form>
 
@@ -526,12 +531,12 @@
             <button type="button" class="btn-cerrar-modal" onclick="cerrarModalStock()" title="Cerrar">✖</button>
         </div>
         <p class="modal-info">
-            Copie la tabla desde su Excel (asegurándose de incluir los encabezados <strong>Variante</strong> y <strong>Physical Quantity</strong>) y péguela en el siguiente recuadro:
+            Copie la tabla desde su Excel (asegurándose de incluir los encabezados <strong>Variante</strong> y <strong>Physical Quantity</strong>) y péguela en el siguiente recuadro. Se eliminará el Stock PL anterior en Firebase antes de guardar el nuevo:
         </p>
         <textarea id="txtDatosStockPL" class="modal-textarea" placeholder="Pegue aquí los datos de Excel (Ctrl + V)..."></textarea>
         <div class="modal-footer">
             <button type="button" class="btn-cancelar-modal" onclick="cerrarModalStock()">Cancelar</button>
-            <button type="button" class="btn-agregar" onclick="procesarStockPegado()">✅ Cargar Stock</button>
+            <button type="button" id="btnGuardarStockModal" class="btn-agregar" onclick="procesarStockPegado()">✅ Cargar Stock</button>
         </div>
     </div>
 </div>
@@ -551,8 +556,9 @@
     const appRegistro = initializeApp(configRegistro, "appRegistro");
     const dbFirestore = getFirestore(appRegistro);
     
-    // Nueva colección independiente para no afectar tus otros procesos
+    // Colecciones en Firebase
     const coleccionManual = "movimientos_manuales"; 
+    const coleccionStockPL = "stock_pl_manual";
 
     const tablaBody = document.getElementById('tablaBody');
     const pendientesCount = document.getElementById('pendientesCount');
@@ -567,25 +573,16 @@
     const btnPegarStock = document.getElementById('btnPegarStock');
     const modalStockPL = document.getElementById('modalStockPL');
     const txtDatosStockPL = document.getElementById('txtDatosStockPL');
+    const btnGuardarStockModal = document.getElementById('btnGuardarStockModal');
 
     // Variable global para almacenar las posiciones nuevas y códigos (comprobar duplicados)
     let posicionesAsignadas = [];
     let codigosPendientes = [];
+    let documentosActuales = [];
+    let cargaInicialMovimientos = false;
 
-    // Diccionario en memoria (y localStorage) para relacionar Variante -> Physical Quantity
+    // Diccionario sincronizado con Firebase para relacionar Variante -> Physical Quantity
     let mapaStockPL = {};
-    try {
-        const guardado = localStorage.getItem('mapaStockPL_manual');
-        if (guardado) {
-            mapaStockPL = JSON.parse(guardado);
-            const totalCargados = Object.keys(mapaStockPL).length;
-            if (totalCargados > 0) {
-                btnPegarStock.innerHTML = `📥 Stock PL (${totalCargados})`;
-            }
-        }
-    } catch (e) {
-        mapaStockPL = {};
-    }
 
     // Función para buscar el stock automáticamente según el código ingresado
     const actualizarStockAutomatico = () => {
@@ -596,6 +593,34 @@
             inStockPl.value = '';
         }
     };
+
+    // Escuchar en tiempo real la colección de Stock PL desde Firebase para todos los dispositivos
+    onSnapshot(collection(dbFirestore, coleccionStockPL), (snapshot) => {
+        const mapaRecibido = {};
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data && data.datos && typeof data.datos === 'object') {
+                Object.assign(mapaRecibido, data.datos);
+            }
+        });
+
+        mapaStockPL = mapaRecibido;
+        const totalCargados = Object.keys(mapaStockPL).length;
+
+        if (totalCargados > 0) {
+            btnPegarStock.innerHTML = `📥 Stock PL (${totalCargados})`;
+        } else {
+            btnPegarStock.innerHTML = `📥 Pegar Stock PL`;
+        }
+
+        // Actualiza el campo de texto si el usuario ya escribió un código
+        actualizarStockAutomatico();
+
+        // Refresca la tabla para que cualquier dispositivo vea el stock actualizado
+        if (cargaInicialMovimientos) {
+            renderizarTabla();
+        }
+    });
 
     // Función para forzar mayúsculas en los inputs automáticamente
     const forceUpperCase = (e) => {
@@ -622,8 +647,8 @@
         modalStockPL.classList.remove('active');
     };
 
-    // Procesar los datos pegados en la ventana flotante
-    window.procesarStockPegado = () => {
+    // Procesar los datos pegados: 1) Eliminar Stock PL anterior en Firebase, 2) Cargar el nuevo en Firebase
+    window.procesarStockPegado = async () => {
         const textoPegado = txtDatosStockPL.value;
 
         if (!textoPegado || !textoPegado.trim()) {
@@ -688,30 +713,102 @@
             }
         }
 
-        mapaStockPL = {};
+        const mapaFormateado = {};
         Object.keys(nuevoMapa).forEach(k => {
-            mapaStockPL[k] = String(nuevoMapa[k]);
+            mapaFormateado[k] = String(nuevoMapa[k]);
         });
 
-        try {
-            localStorage.setItem('mapaStockPL_manual', JSON.stringify(mapaStockPL));
-        } catch (e) {
-            console.warn("No se pudo guardar en localStorage:", e);
+        const codigosTotales = Object.keys(mapaFormateado);
+        if (codigosTotales.length === 0) {
+            alert("⚠️ No se encontraron códigos válidos para cargar.");
+            return;
         }
 
-        const totalUnicos = Object.keys(mapaStockPL).length;
-        if (navigator.vibrate) navigator.vibrate(50);
+        const textoBotonOriginal = btnGuardarStockModal.innerHTML;
+        btnGuardarStockModal.disabled = true;
+        btnGuardarStockModal.innerHTML = "⏳ Actualizando Firebase...";
 
-        cerrarModalStock();
+        try {
+            // 1. ELIMINAR PRIMERO TODO LO QUE ESTÁ CARGADO EN FIREBASE (coleccionStockPL)
+            const snapshotExistente = await getDocs(collection(dbFirestore, coleccionStockPL));
+            if (!snapshotExistente.empty) {
+                const docsExistentes = snapshotExistente.docs;
+                for (let i = 0; i < docsExistentes.length; i += 450) {
+                    const batchBorrar = writeBatch(dbFirestore);
+                    const fragmento = docsExistentes.slice(i, i + 450);
+                    fragmento.forEach(docSnap => {
+                        batchBorrar.delete(doc(dbFirestore, coleccionStockPL, docSnap.id));
+                    });
+                    await batchBorrar.commit();
+                }
+            }
 
-        btnPegarStock.innerHTML = `✅ Stock PL (${totalUnicos})`;
-        setTimeout(() => {
-            btnPegarStock.innerHTML = `📥 Stock PL (${totalUnicos})`;
-        }, 2000);
+            // 2. CARGAR LA NUEVA DATA DE STOCK PL EN FIREBASE (dividida en bloques seguros para soportar miles de filas)
+            const tamanoBloque = 1500;
+            const batchSubir = writeBatch(dbFirestore);
+            let indiceLote = 0;
 
-        // Si ya había un código escrito en el input, actualiza su stock de inmediato
-        actualizarStockAutomatico();
-        inCodigo.focus();
+            for (let i = 0; i < codigosTotales.length; i += tamanoBloque) {
+                const corteCodigos = codigosTotales.slice(i, i + tamanoBloque);
+                const datosLote = {};
+                corteCodigos.forEach(cod => {
+                    datosLote[cod] = mapaFormateado[cod];
+                });
+
+                const nuevoDocRef = doc(dbFirestore, coleccionStockPL, `lote_${indiceLote}`);
+                batchSubir.set(nuevoDocRef, {
+                    datos: datosLote,
+                    fechaActualizacion: new Date().toISOString()
+                });
+                indiceLote++;
+            }
+
+            await batchSubir.commit();
+
+            // 3. SINCRONIZAR TAMBIÉN EL STOCK DE LOS REGISTROS QUE YA ESTÉN EN LA TABLA
+            if (documentosActuales.length > 0) {
+                for (let i = 0; i < documentosActuales.length; i += 450) {
+                    const batchActualizarTabla = writeBatch(dbFirestore);
+                    const fragmentoMovs = documentosActuales.slice(i, i + 450);
+                    let huboCambios = false;
+
+                    fragmentoMovs.forEach(mov => {
+                        const codMov = (mov.codigo || '').trim().toUpperCase();
+                        const nuevoStock = Object.prototype.hasOwnProperty.call(mapaFormateado, codMov)
+                            ? mapaFormateado[codMov]
+                            : '';
+                        if ((mov.stockPl || '') !== nuevoStock) {
+                            batchActualizarTabla.update(doc(dbFirestore, coleccionManual, mov.id), {
+                                stockPl: nuevoStock
+                            });
+                            huboCambios = true;
+                        }
+                    });
+
+                    if (huboCambios) {
+                        await batchActualizarTabla.commit();
+                    }
+                }
+            }
+
+            if (navigator.vibrate) navigator.vibrate(50);
+            cerrarModalStock();
+
+            btnPegarStock.innerHTML = `✅ Stock PL (${codigosTotales.length})`;
+            setTimeout(() => {
+                btnPegarStock.innerHTML = `📥 Stock PL (${codigosTotales.length})`;
+            }, 2000);
+
+            actualizarStockAutomatico();
+            inCodigo.focus();
+        } catch (error) {
+            console.error("Error al actualizar Stock PL en Firebase:", error);
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            alert("❌ Error al guardar el Stock PL en Firebase: " + error.message);
+        } finally {
+            btnGuardarStockModal.disabled = false;
+            btnGuardarStockModal.innerHTML = textoBotonOriginal;
+        }
     };
 
     // Función para agregar un nuevo registro manualmente
@@ -766,9 +863,9 @@
         }
     });
 
-    // Escuchar los datos en tiempo real de la nueva colección
-    onSnapshot(collection(dbFirestore, coleccionManual), (snapshot) => {
-        if (snapshot.empty) {
+    // Función para renderizar la tabla combinando los movimientos y el Stock PL de Firebase
+    function renderizarTabla() {
+        if (documentosActuales.length === 0) {
             tablaBody.innerHTML = '<tr><td colspan="6" class="loader">No hay códigos registrados manualmente.</td></tr>';
             actualizarContadores(0, 0); 
             posicionesAsignadas = []; // Reinicia el array si está vacío
@@ -779,34 +876,26 @@
         tablaBody.innerHTML = '';
         let pendientes = 0;
         let movidosVisibles = 0; 
-        
-        const documentos = [];
-        snapshot.forEach(docSnap => {
-            documentos.push({ id: docSnap.id, ...docSnap.data() });
-        });
-
-        // Ordenar primero por estado (Pendientes arriba) y luego por fecha
-        documentos.sort((a, b) => {
-            if (a.estadoMovido === b.estadoMovido) {
-                return new Date(a.fecha) - new Date(b.fecha); 
-            }
-            return a.estadoMovido ? 1 : -1; 
-        });
 
         // Actualiza las posiciones asignadas y códigos pendientes para la validación del formulario
-        posicionesAsignadas = documentos.map(doc => doc.moverA);
-        codigosPendientes = documentos.filter(doc => doc.estadoMovido === false).map(doc => doc.codigo);
+        posicionesAsignadas = documentosActuales.map(doc => doc.moverA);
+        codigosPendientes = documentosActuales.filter(doc => doc.estadoMovido === false).map(doc => doc.codigo);
 
-        documentos.forEach(data => {
+        documentosActuales.forEach(data => {
             const docId = data.id;
             const cod = data.codigo || 'S/N';
             const posicionActual = data.posicionActual || '-';
             const moverA = data.moverA || '-';
             const estaMovido = data.estadoMovido === true;
 
+            // Toma el stock guardado en el registro o directamente del diccionario Stock PL de Firebase
+            const stockResuelto = (data.stockPl && data.stockPl.trim() !== '')
+                ? data.stockPl.trim()
+                : (Object.prototype.hasOwnProperty.call(mapaStockPL, cod.trim().toUpperCase()) ? mapaStockPL[cod.trim().toUpperCase()] : '');
+
             // Validación visual para Stock PL
-            const stockPlHtml = (data.stockPl && data.stockPl.trim() !== '') 
-                ? `<span style="font-weight: 700; color: var(--azul-fuerte);">${data.stockPl}</span>` 
+            const stockPlHtml = (stockResuelto !== '') 
+                ? `<span style="font-weight: 700; color: var(--azul-fuerte);">${stockResuelto}</span>` 
                 : `<span class="badge-sin-dato">N/A</span>`;
 
             if (!estaMovido) {
@@ -850,6 +939,33 @@
         });
 
         actualizarContadores(pendientes, movidosVisibles); 
+    }
+
+    // Escuchar los datos en tiempo real de la nueva colección
+    onSnapshot(collection(dbFirestore, coleccionManual), (snapshot) => {
+        cargaInicialMovimientos = true;
+
+        if (snapshot.empty) {
+            documentosActuales = [];
+            renderizarTabla();
+            return;
+        }
+
+        const documentos = [];
+        snapshot.forEach(docSnap => {
+            documentos.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        // Ordenar primero por estado (Pendientes arriba) y luego por fecha
+        documentos.sort((a, b) => {
+            if (a.estadoMovido === b.estadoMovido) {
+                return new Date(a.fecha) - new Date(b.fecha); 
+            }
+            return a.estadoMovido ? 1 : -1; 
+        });
+
+        documentosActuales = documentos;
+        renderizarTabla();
     });
 
     function actualizarContadores(pendientes, movidosVisibles) {
