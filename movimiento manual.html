@@ -147,6 +147,13 @@
             box-shadow: 0 0 0 2px var(--azul-claro);
         }
 
+        .form-manual input[readonly] {
+            background-color: #e2e8f0;
+            color: var(--azul-fuerte);
+            font-weight: 700;
+            cursor: not-allowed;
+        }
+
         .btn-agregar {
             background: var(--azul-fuerte);
             color: white;
@@ -321,6 +328,133 @@
             display: inline-block;
         }
 
+        /* Estilos de Ventana Flotante (Modal Stock PL) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--blanco);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 550px;
+            padding: 1.25rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--gris-borde);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-sizing: border-box;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--azul-claro);
+            padding-bottom: 10px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--azul-fuerte);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-cerrar-modal {
+            background: transparent;
+            border: none;
+            font-size: 1.1rem;
+            color: var(--gris-texto);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .btn-cerrar-modal:hover {
+            background: #fee2e2;
+            color: var(--rojo-error);
+        }
+
+        .modal-info {
+            font-size: 0.8rem;
+            color: var(--gris-texto);
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .modal-textarea {
+            width: 100%;
+            height: 180px;
+            padding: 10px;
+            border: 1px solid var(--gris-borde);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            resize: vertical;
+            outline: none;
+            box-sizing: border-box;
+            background: #f8fafc;
+            white-space: pre;
+            overflow: auto;
+        }
+
+        .modal-textarea:focus {
+            border-color: var(--azul-medio);
+            background: var(--blanco);
+            box-shadow: 0 0 0 2px var(--azul-claro);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .btn-cancelar-modal {
+            background: #f1f5f9;
+            color: var(--gris-texto);
+            border: 1px solid var(--gris-borde);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancelar-modal:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
         @media (max-width: 600px) {
             .header {
                 flex-direction: column;
@@ -350,6 +484,7 @@
         <div class="stats">
             <span id="pendientesCount">Pendientes: 0</span>
             <span id="movidosCount" style="color: var(--verde-exito); border-color: #bbf7d0; background: #f0fdf4;">Movidos: 0</span>
+            <button class="btn-copiar" id="btnPegarStock" onclick="pegarStockPL()" title="Abrir ventana para pegar Stock PL desde Excel">📥 Pegar Stock PL</button>
             <button class="btn-copiar" onclick="copiarAExcel()" title="Copiar tabla para Excel">📋 Copiar a Excel</button>
             <button class="btn-eliminar-todos" onclick="eliminarTodosLosRegistros()" title="Eliminar TODOS los registros de la lista">🗑️ Limpiar Todo</button>
         </div>
@@ -360,7 +495,7 @@
         <input type="text" id="inCodigo" placeholder="CÓDIGO" required autocomplete="off">
         <input type="text" id="inPosActual" placeholder="POSICIÓN ACTUAL" required autocomplete="off">
         <input type="text" id="inPosNueva" placeholder="NUEVA POSICION" required autocomplete="off">
-        <input type="text" id="inStockPl" placeholder="STOCK PL(OPCIONAL)" autocomplete="off">
+        <input type="text" id="inStockPl" placeholder="Stock PL(automático)" readonly autocomplete="off">
         <button type="submit" class="btn-agregar">➕ Agregar</button>
     </form>
 
@@ -380,6 +515,24 @@
                 <tr><td colspan="6" class="loader">Cargando registros...</td></tr>
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Ventana Flotante (Modal) para Pegar Stock PL -->
+<div id="modalStockPL" class="modal-overlay" onclick="if(event.target === this) cerrarModalStock()">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>📥 Pegar Datos de Stock PL</h2>
+            <button type="button" class="btn-cerrar-modal" onclick="cerrarModalStock()" title="Cerrar">✖</button>
+        </div>
+        <p class="modal-info">
+            Copie la tabla desde su Excel (asegurándose de incluir los encabezados <strong>Variante</strong> y <strong>Physical Quantity</strong>) y péguela en el siguiente recuadro:
+        </p>
+        <textarea id="txtDatosStockPL" class="modal-textarea" placeholder="Pegue aquí los datos de Excel (Ctrl + V)..."></textarea>
+        <div class="modal-footer">
+            <button type="button" class="btn-cancelar-modal" onclick="cerrarModalStock()">Cancelar</button>
+            <button type="button" class="btn-agregar" onclick="procesarStockPegado()">✅ Cargar Stock</button>
+        </div>
     </div>
 </div>
 
@@ -411,25 +564,163 @@
     const inPosActual = document.getElementById('inPosActual');
     const inPosNueva = document.getElementById('inPosNueva');
     const inStockPl = document.getElementById('inStockPl');
+    const btnPegarStock = document.getElementById('btnPegarStock');
+    const modalStockPL = document.getElementById('modalStockPL');
+    const txtDatosStockPL = document.getElementById('txtDatosStockPL');
 
     // Variable global para almacenar las posiciones nuevas y códigos (comprobar duplicados)
     let posicionesAsignadas = [];
     let codigosPendientes = [];
+
+    // Diccionario en memoria (y localStorage) para relacionar Variante -> Physical Quantity
+    let mapaStockPL = {};
+    try {
+        const guardado = localStorage.getItem('mapaStockPL_manual');
+        if (guardado) {
+            mapaStockPL = JSON.parse(guardado);
+            const totalCargados = Object.keys(mapaStockPL).length;
+            if (totalCargados > 0) {
+                btnPegarStock.innerHTML = `📥 Stock PL (${totalCargados})`;
+            }
+        }
+    } catch (e) {
+        mapaStockPL = {};
+    }
+
+    // Función para buscar el stock automáticamente según el código ingresado
+    const actualizarStockAutomatico = () => {
+        const codigoLimpio = inCodigo.value.trim().toUpperCase();
+        if (codigoLimpio && Object.prototype.hasOwnProperty.call(mapaStockPL, codigoLimpio)) {
+            inStockPl.value = mapaStockPL[codigoLimpio];
+        } else {
+            inStockPl.value = '';
+        }
+    };
 
     // Función para forzar mayúsculas en los inputs automáticamente
     const forceUpperCase = (e) => {
         e.target.value = e.target.value.toUpperCase();
     };
 
-    inCodigo.addEventListener('input', forceUpperCase);
+    inCodigo.addEventListener('input', (e) => {
+        forceUpperCase(e);
+        actualizarStockAutomatico();
+    });
     inPosActual.addEventListener('input', forceUpperCase);
     inPosNueva.addEventListener('input', forceUpperCase);
     inStockPl.addEventListener('input', forceUpperCase);
+
+    // Abrir la ventana flotante para pegar el Stock PL
+    window.pegarStockPL = () => {
+        txtDatosStockPL.value = '';
+        modalStockPL.classList.add('active');
+        setTimeout(() => txtDatosStockPL.focus(), 50);
+    };
+
+    // Cerrar la ventana flotante
+    window.cerrarModalStock = () => {
+        modalStockPL.classList.remove('active');
+    };
+
+    // Procesar los datos pegados en la ventana flotante
+    window.procesarStockPegado = () => {
+        const textoPegado = txtDatosStockPL.value;
+
+        if (!textoPegado || !textoPegado.trim()) {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            alert("⚠️ Por favor, pegue los datos de Excel en el recuadro antes de cargar.");
+            txtDatosStockPL.focus();
+            return;
+        }
+
+        const lineas = textoPegado.split(/\r?\n/).filter(l => l.trim() !== '');
+        if (lineas.length < 2) {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            alert("⚠️ No se detectaron suficientes filas. Asegúrese de copiar la tabla de Excel incluyendo los encabezados 'Variante' y 'Physical Quantity'.");
+            return;
+        }
+
+        let idxVariante = -1;
+        let idxPhysicalQty = -1;
+        let filaEncabezado = -1;
+
+        // Buscar en qué fila y columnas están "Variante" y "Physical Quantity"
+        for (let i = 0; i < lineas.length; i++) {
+            const columnas = lineas[i].split('\t').map(col => col.trim().toLowerCase());
+            const vIdx = columnas.findIndex(c => c === 'variante');
+            const pIdx = columnas.findIndex(c => c === 'physical quantity');
+
+            if (vIdx !== -1 && pIdx !== -1) {
+                idxVariante = vIdx;
+                idxPhysicalQty = pIdx;
+                filaEncabezado = i;
+                break;
+            }
+        }
+
+        if (idxVariante === -1 || idxPhysicalQty === -1) {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            alert("❌ No se encontraron los encabezados 'Variante' y 'Physical Quantity' en los datos pegados.");
+            return;
+        }
+
+        const nuevoMapa = {};
+
+        for (let i = filaEncabezado + 1; i < lineas.length; i++) {
+            const cols = lineas[i].split('\t');
+            if (cols.length <= Math.max(idxVariante, idxPhysicalQty)) continue;
+
+            const codigoVar = (cols[idxVariante] || '').trim().toUpperCase();
+            const stockRaw = (cols[idxPhysicalQty] || '').trim();
+
+            if (codigoVar !== '') {
+                const numVal = Number(stockRaw.replace(/,/g, ''));
+                if (!isNaN(numVal) && stockRaw !== '') {
+                    // Si el mismo código aparece en varias filas del Excel, suma su Physical Quantity
+                    if (Object.prototype.hasOwnProperty.call(nuevoMapa, codigoVar) && typeof nuevoMapa[codigoVar] === 'number') {
+                        nuevoMapa[codigoVar] = Math.round((nuevoMapa[codigoVar] + numVal) * 100) / 100;
+                    } else {
+                        nuevoMapa[codigoVar] = numVal;
+                    }
+                } else {
+                    nuevoMapa[codigoVar] = stockRaw;
+                }
+            }
+        }
+
+        mapaStockPL = {};
+        Object.keys(nuevoMapa).forEach(k => {
+            mapaStockPL[k] = String(nuevoMapa[k]);
+        });
+
+        try {
+            localStorage.setItem('mapaStockPL_manual', JSON.stringify(mapaStockPL));
+        } catch (e) {
+            console.warn("No se pudo guardar en localStorage:", e);
+        }
+
+        const totalUnicos = Object.keys(mapaStockPL).length;
+        if (navigator.vibrate) navigator.vibrate(50);
+
+        cerrarModalStock();
+
+        btnPegarStock.innerHTML = `✅ Stock PL (${totalUnicos})`;
+        setTimeout(() => {
+            btnPegarStock.innerHTML = `📥 Stock PL (${totalUnicos})`;
+        }, 2000);
+
+        // Si ya había un código escrito en el input, actualiza su stock de inmediato
+        actualizarStockAutomatico();
+        inCodigo.focus();
+    };
 
     // Función para agregar un nuevo registro manualmente
     formManual.addEventListener('submit', async (e) => {
         e.preventDefault();
         
+        // Aseguramos que el stock esté sincronizado con el código antes de enviar
+        actualizarStockAutomatico();
+
         // Se obtiene el valor y se asegura de que no haya espacios en blanco extra
         const codigo = inCodigo.value.trim();
         const posActual = inPosActual.value.trim();
@@ -494,12 +785,10 @@
             documentos.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // Ordenar primero por estado (Pendientes arriba) y luego por POSICIÓN ACTUAL de menor a mayor
+        // Ordenar primero por estado (Pendientes arriba) y luego por fecha
         documentos.sort((a, b) => {
             if (a.estadoMovido === b.estadoMovido) {
-                const posA = (a.posicionActual || '').toString();
-                const posB = (b.posicionActual || '').toString();
-                return posA.localeCompare(posB, undefined, { numeric: true, sensitivity: 'base' });
+                return new Date(a.fecha) - new Date(b.fecha); 
             }
             return a.estadoMovido ? 1 : -1; 
         });
@@ -669,7 +958,7 @@
 
     // Función para copiar la tabla a Excel (CÓDIGO, POSICIÓN ACTUAL, NUEVA POSICIÓN, STOCK PL)
     window.copiarAExcel = () => {
-        const btnCopiar = document.querySelector('.btn-copiar');
+        const btnCopiar = document.querySelector('button[onclick="copiarAExcel()"]');
         const textoOriginal = btnCopiar.innerHTML;
         
         // CONGELAR EL ANCHO para evitar que el encabezado salte
