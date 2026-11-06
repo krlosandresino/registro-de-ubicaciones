@@ -488,23 +488,106 @@
         }
 
         @media (max-width: 600px) {
+            body {
+                padding: 4px;
+                height: 100dvh;
+            }
+            .container {
+                padding: 8px;
+                border-radius: 10px;
+            }
             .header {
                 flex-direction: column;
                 align-items: flex-start;
+                margin-bottom: 6px;
+                padding-bottom: 6px;
+                gap: 6px;
+            }
+            .header h1 {
+                font-size: 1.05rem;
             }
             .stats {
                 width: 100%;
-                justify-content: space-between;
-                margin-top: 5px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+                margin-top: 0;
             }
-            .btn-eliminar-todos { width: 100%; margin-top: 5px; }
-            .btn-copiar { width: 100%; margin-top: 5px; }
-            .form-manual { flex-direction: column; }
-            th { font-size: 0.65rem; padding: 8px 2px; }
-            td { font-size: 0.75rem; padding: 6px 2px; }
-            .btn-movido { width: 105px; min-width: 105px; font-size: 0.65rem; }
-            .loc-lectura { padding: 2px 4px; font-size: 0.70rem; }
-            .btn-eliminar { padding: 4px 6px; font-size: 0.75rem; }
+            .stats span {
+                flex: 1 1 45%;
+                text-align: center;
+                padding: 4px 6px;
+                font-size: 0.72rem;
+                box-sizing: border-box;
+            }
+            .btn-copiar, .btn-eliminar-todos {
+                flex: 1 1 30%;
+                width: auto;
+                margin-top: 0;
+                padding: 5px 4px;
+                font-size: 0.70rem;
+                white-space: nowrap;
+            }
+            .form-manual {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+                padding: 6px;
+                margin-bottom: 6px;
+            }
+            .form-manual input {
+                min-width: 0;
+                width: 100%;
+                box-sizing: border-box;
+                padding: 6px 8px;
+                font-size: 0.75rem;
+            }
+            .btn-agregar {
+                grid-column: 1 / -1;
+                padding: 6px;
+                font-size: 0.78rem;
+            }
+            table {
+                min-width: 100%;
+                margin: 0 auto;
+            }
+            th {
+                font-size: 0.62rem;
+                padding: 5px 2px;
+            }
+            td {
+                font-size: 0.72rem;
+                padding: 5px 2px;
+            }
+            th:nth-child(1), td:nth-child(1) {
+                width: 28px;
+            }
+            .loc-registro {
+                white-space: nowrap;
+                font-size: 0.70rem;
+                gap: 2px;
+            }
+            .loc-lectura {
+                padding: 2px 5px;
+                font-size: 0.70rem;
+                flex-wrap: nowrap;
+                white-space: nowrap;
+                gap: 2px;
+            }
+            svg {
+                width: 11px;
+                height: 11px;
+            }
+            .btn-movido {
+                width: 78px;
+                min-width: 78px;
+                font-size: 0.65rem;
+                padding: 5px 2px;
+            }
+            .btn-eliminar {
+                padding: 4px 5px;
+                font-size: 0.72rem;
+            }
         }
     </style>
 </head>
