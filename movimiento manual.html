@@ -270,6 +270,11 @@
             background: var(--azul-fuerte);
         }
 
+        .btn-movido:disabled {
+            cursor: wait;
+            opacity: 0.75;
+        }
+
         .btn-eliminar {
             background: #fee2e2;
             color: var(--rojo-error);
@@ -333,7 +338,7 @@
             display: inline-block;
         }
 
-        /* Estilos de Ventana Flotante (Modal Stock PL) */
+        /* Estilos de Ventanas Flotantes (Modales) */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -367,6 +372,10 @@
             gap: 12px;
             box-sizing: border-box;
             animation: modalFadeIn 0.2s ease-out;
+        }
+
+        .modal-box.modal-small {
+            max-width: 380px;
         }
 
         @keyframes modalFadeIn {
@@ -436,6 +445,24 @@
             box-shadow: 0 0 0 2px var(--azul-claro);
         }
 
+        .modal-input-pass {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--gris-borde);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            box-sizing: border-box;
+            background: #f8fafc;
+            letter-spacing: 2px;
+        }
+
+        .modal-input-pass:focus {
+            border-color: var(--azul-medio);
+            background: var(--blanco);
+            box-shadow: 0 0 0 2px var(--azul-claro);
+        }
+
         .modal-footer {
             display: flex;
             justify-content: flex-end;
@@ -500,7 +527,7 @@
         <input type="text" id="inCodigo" placeholder="CÓDIGO" required autocomplete="off">
         <input type="text" id="inPosActual" placeholder="POSICIÓN ACTUAL" required autocomplete="off">
         <input type="text" id="inPosNueva" placeholder="NUEVA POSICION" required autocomplete="off">
-        <input type="text" id="inStockPl" placeholder="STOCK PL(OPCIONAL)" readonly autocomplete="off">
+        <input type="text" id="inStockPl" placeholder="Stock PL(automático)" readonly autocomplete="off">
         <button type="submit" class="btn-agregar">➕ Agregar</button>
     </form>
 
@@ -531,9 +558,9 @@
             <button type="button" class="btn-cerrar-modal" onclick="cerrarModalStock()" title="Cerrar">✖</button>
         </div>
         <p class="modal-info">
-            Copie la tabla desde su Excel (asegurándose de incluir los encabezados <strong>Variante</strong> y <strong>Physical Quantity</strong>) y péguela en el siguiente recuadro. Se eliminará el Stock PL anterior en Firebase antes de guardar el nuevo:
+            Copie la tabla desde Orisales (asegurándose de incluir los encabezados <strong>Variante</strong> y <strong>Physical Quantity</strong>) y péguela en el siguiente recuadro. Se reemplazará el Stock PL anterior en la base de datos de forma instantánea:
         </p>
-        <textarea id="txtDatosStockPL" class="modal-textarea" placeholder="Pegue aquí los datos de Excel (Ctrl + V)..."></textarea>
+        <textarea id="txtDatosStockPL" class="modal-textarea" placeholder="Pegue aquí los datos..."></textarea>
         <div class="modal-footer">
             <button type="button" class="btn-cancelar-modal" onclick="cerrarModalStock()">Cancelar</button>
             <button type="button" id="btnGuardarStockModal" class="btn-agregar" onclick="procesarStockPegado()">✅ Cargar Stock</button>
@@ -541,10 +568,39 @@
     </div>
 </div>
 
+<!-- Ventana Flotante (Modal) de Seguridad para Contraseña Oculta -->
+<div id="modalPassword" class="modal-overlay" onclick="if(event.target === this) cerrarModalPassword(null)">
+    <div class="modal-box modal-small">
+        <div class="modal-header">
+            <h2>🔒 Seguridad</h2>
+            <button type="button" class="btn-cerrar-modal" onclick="cerrarModalPassword(null)" title="Cerrar">✖</button>
+        </div>
+        <p id="lblMensajePassword" class="modal-info"></p>
+        <input type="password" id="inPasswordSeguridad" class="modal-input-pass" placeholder="••••••••••••" autocomplete="off">
+        <div class="modal-footer">
+            <button type="button" class="btn-cancelar-modal" onclick="cerrarModalPassword(null)">Cancelar</button>
+            <button type="button" class="btn-agregar" onclick="confirmarModalPassword()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
-    // IMPORTACIÓN ACTUALIZADA CON writeBatch
+    // IMPORTACIÓN ACTUALIZADA CON CACHÉ PERSISTENTE Y WRITEBATCH
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, doc, deleteDoc, addDoc, updateDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { 
+        getFirestore, 
+        initializeFirestore, 
+        persistentLocalCache, 
+        persistentMultipleTabManager, 
+        collection, 
+        onSnapshot, 
+        doc, 
+        deleteDoc, 
+        addDoc, 
+        updateDoc, 
+        getDocs, 
+        writeBatch 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // ÚNICAMENTE LA CONEXIÓN A TU PROYECTO PRINCIPAL
     const configRegistro = {
@@ -554,7 +610,18 @@
     };
 
     const appRegistro = initializeApp(configRegistro, "appRegistro");
-    const dbFirestore = getFirestore(appRegistro);
+    
+    // Inicializar Firestore con Caché Local Persistente (Modo Offline Inteligente y ahorro de lecturas)
+    let dbFirestore;
+    try {
+        dbFirestore = initializeFirestore(appRegistro, {
+            localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager()
+            })
+        });
+    } catch (e) {
+        dbFirestore = getFirestore(appRegistro);
+    }
     
     // Colecciones en Firebase
     const coleccionManual = "movimientos_manuales"; 
@@ -565,7 +632,7 @@
     const movidosCount = document.getElementById('movidosCount');
     const formManual = document.getElementById('formManual');
     
-    // Referencias a los inputs
+    // Referencias a los inputs y modales
     const inCodigo = document.getElementById('inCodigo');
     const inPosActual = document.getElementById('inPosActual');
     const inPosNueva = document.getElementById('inPosNueva');
@@ -575,6 +642,12 @@
     const txtDatosStockPL = document.getElementById('txtDatosStockPL');
     const btnGuardarStockModal = document.getElementById('btnGuardarStockModal');
 
+    // Referencias del Modal de Contraseña
+    const modalPassword = document.getElementById('modalPassword');
+    const lblMensajePassword = document.getElementById('lblMensajePassword');
+    const inPasswordSeguridad = document.getElementById('inPasswordSeguridad');
+    let resolverPasswordPromise = null;
+
     // Variable global para almacenar las posiciones nuevas y códigos (comprobar duplicados)
     let posicionesAsignadas = [];
     let codigosPendientes = [];
@@ -583,6 +656,110 @@
 
     // Diccionario sincronizado con Firebase para relacionar Variante -> Physical Quantity
     let mapaStockPL = {};
+
+    // --- GENERADOR DE ALERTAS SONORAS (WEB AUDIO API SIN ARCHIVOS EXTERNOS) ---
+    let audioCtx = null;
+    function reproducirSonido(tipo) {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            if (!audioCtx) audioCtx = new AudioContextClass();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const now = audioCtx.currentTime;
+
+            if (tipo === 'exito') {
+                // Doble tono ascendente limpio (Agregar / Copiar / Cargar Stock)
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880, now + 0.08); // A5
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.22);
+            } else if (tipo === 'movido') {
+                // Tono suave de confirmación al mover/completar fila
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.15); // G5
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            } else if (tipo === 'alerta') {
+                // Doble pulso medio para advertencias (Código o Posición duplicada)
+                [0, 0.12].forEach(offset => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(340, now + offset);
+                    gain.gain.setValueAtTime(0.08, now + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.09);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + offset);
+                    osc.stop(now + offset + 0.09);
+                });
+            } else if (tipo === 'error') {
+                // Tono grave descendente para errores o contraseña incorrecta
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(190, now);
+                osc.frequency.linearRampToValueAtTime(120, now + 0.28);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        } catch (err) {
+            // Ignorar si el navegador bloquea el audio antes de interacción
+        }
+    }
+
+    // --- MODAL DE SEGURIDAD PARA CONTRASEÑA OCULTA ---
+    function solicitarPassword(mensaje) {
+        return new Promise((resolve) => {
+            resolverPasswordPromise = resolve;
+            lblMensajePassword.innerText = mensaje;
+            inPasswordSeguridad.value = '';
+            modalPassword.classList.add('active');
+            setTimeout(() => inPasswordSeguridad.focus(), 50);
+        });
+    }
+
+    window.cerrarModalPassword = (valor = null) => {
+        modalPassword.classList.remove('active');
+        if (resolverPasswordPromise) {
+            const resolve = resolverPasswordPromise;
+            resolverPasswordPromise = null;
+            resolve(valor);
+        }
+    };
+
+    window.confirmarModalPassword = () => {
+        const valor = inPasswordSeguridad.value;
+        window.cerrarModalPassword(valor);
+    };
+
+    inPasswordSeguridad.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            window.confirmarModalPassword();
+        } else if (e.key === 'Escape') {
+            window.cerrarModalPassword(null);
+        }
+    });
 
     // Función para buscar el stock automáticamente según el código ingresado
     const actualizarStockAutomatico = () => {
@@ -616,7 +793,7 @@
         // Actualiza el campo de texto si el usuario ya escribió un código
         actualizarStockAutomatico();
 
-        // Refresca la tabla para que cualquier dispositivo vea el stock actualizado
+        // Refresca la tabla en memoria de inmediato sin gastar escrituras extra en Firebase
         if (cargaInicialMovimientos) {
             renderizarTabla();
         }
@@ -635,6 +812,26 @@
     inPosNueva.addEventListener('input', forceUpperCase);
     inStockPl.addEventListener('input', forceUpperCase);
 
+    // Delegación de eventos en la tabla para el efecto hover de los botones (evita código inline y fallos en táctil)
+    tablaBody.addEventListener('pointerover', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        const btn = e.target.closest('.btn-movido');
+        if (btn && !btn.disabled) {
+            btn.innerHTML = '🚀 Mover';
+            if (btn.dataset.movido === 'true') {
+                btn.innerHTML = '↩️ Deshacer';
+            }
+        }
+    });
+
+    tablaBody.addEventListener('pointerout', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        const btn = e.target.closest('.btn-movido');
+        if (btn && !btn.disabled) {
+            btn.innerHTML = btn.dataset.movido === 'true' ? '✅ Completado' : '🚀 Mover';
+        }
+    });
+
     // Abrir la ventana flotante para pegar el Stock PL
     window.pegarStockPL = () => {
         txtDatosStockPL.value = '';
@@ -647,11 +844,12 @@
         modalStockPL.classList.remove('active');
     };
 
-    // Procesar los datos pegados: 1) Eliminar Stock PL anterior en Firebase, 2) Cargar el nuevo en Firebase
+    // Procesar los datos pegados con actualización ATÓMICA en un único writeBatch
     window.procesarStockPegado = async () => {
         const textoPegado = txtDatosStockPL.value;
 
         if (!textoPegado || !textoPegado.trim()) {
+            reproducirSonido('alerta');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             alert("⚠️ Por favor, pegue los datos de Excel en el recuadro antes de cargar.");
             txtDatosStockPL.focus();
@@ -660,6 +858,7 @@
 
         const lineas = textoPegado.split(/\r?\n/).filter(l => l.trim() !== '');
         if (lineas.length < 2) {
+            reproducirSonido('alerta');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             alert("⚠️ No se detectaron suficientes filas. Asegúrese de copiar la tabla de Excel incluyendo los encabezados 'Variante' y 'Physical Quantity'.");
             return;
@@ -684,6 +883,7 @@
         }
 
         if (idxVariante === -1 || idxPhysicalQty === -1) {
+            reproducirSonido('error');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             alert("❌ No se encontraron los encabezados 'Variante' y 'Physical Quantity' en los datos pegados.");
             return;
@@ -720,6 +920,7 @@
 
         const codigosTotales = Object.keys(mapaFormateado);
         if (codigosTotales.length === 0) {
+            reproducirSonido('alerta');
             alert("⚠️ No se encontraron códigos válidos para cargar.");
             return;
         }
@@ -729,23 +930,15 @@
         btnGuardarStockModal.innerHTML = "⏳ Actualizando Firebase...";
 
         try {
-            // 1. ELIMINAR PRIMERO TODO LO QUE ESTÁ CARGADO EN FIREBASE (coleccionStockPL)
+            // OPERACIÓN ATÓMICA: Eliminamos lotes anteriores y cargamos los nuevos en un único writeBatch
             const snapshotExistente = await getDocs(collection(dbFirestore, coleccionStockPL));
-            if (!snapshotExistente.empty) {
-                const docsExistentes = snapshotExistente.docs;
-                for (let i = 0; i < docsExistentes.length; i += 450) {
-                    const batchBorrar = writeBatch(dbFirestore);
-                    const fragmento = docsExistentes.slice(i, i + 450);
-                    fragmento.forEach(docSnap => {
-                        batchBorrar.delete(doc(dbFirestore, coleccionStockPL, docSnap.id));
-                    });
-                    await batchBorrar.commit();
-                }
-            }
+            const batchUnico = writeBatch(dbFirestore);
 
-            // 2. CARGAR LA NUEVA DATA DE STOCK PL EN FIREBASE (dividida en bloques seguros para soportar miles de filas)
+            snapshotExistente.forEach(docSnap => {
+                batchUnico.delete(doc(dbFirestore, coleccionStockPL, docSnap.id));
+            });
+
             const tamanoBloque = 1500;
-            const batchSubir = writeBatch(dbFirestore);
             let indiceLote = 0;
 
             for (let i = 0; i < codigosTotales.length; i += tamanoBloque) {
@@ -756,41 +949,16 @@
                 });
 
                 const nuevoDocRef = doc(dbFirestore, coleccionStockPL, `lote_${indiceLote}`);
-                batchSubir.set(nuevoDocRef, {
+                batchUnico.set(nuevoDocRef, {
                     datos: datosLote,
                     fechaActualizacion: new Date().toISOString()
                 });
                 indiceLote++;
             }
 
-            await batchSubir.commit();
+            await batchUnico.commit();
 
-            // 3. SINCRONIZAR TAMBIÉN EL STOCK DE LOS REGISTROS QUE YA ESTÉN EN LA TABLA
-            if (documentosActuales.length > 0) {
-                for (let i = 0; i < documentosActuales.length; i += 450) {
-                    const batchActualizarTabla = writeBatch(dbFirestore);
-                    const fragmentoMovs = documentosActuales.slice(i, i + 450);
-                    let huboCambios = false;
-
-                    fragmentoMovs.forEach(mov => {
-                        const codMov = (mov.codigo || '').trim().toUpperCase();
-                        const nuevoStock = Object.prototype.hasOwnProperty.call(mapaFormateado, codMov)
-                            ? mapaFormateado[codMov]
-                            : '';
-                        if ((mov.stockPl || '') !== nuevoStock) {
-                            batchActualizarTabla.update(doc(dbFirestore, coleccionManual, mov.id), {
-                                stockPl: nuevoStock
-                            });
-                            huboCambios = true;
-                        }
-                    });
-
-                    if (huboCambios) {
-                        await batchActualizarTabla.commit();
-                    }
-                }
-            }
-
+            reproducirSonido('exito');
             if (navigator.vibrate) navigator.vibrate(50);
             cerrarModalStock();
 
@@ -803,6 +971,7 @@
             inCodigo.focus();
         } catch (error) {
             console.error("Error al actualizar Stock PL en Firebase:", error);
+            reproducirSonido('error');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             alert("❌ Error al guardar el Stock PL en Firebase: " + error.message);
         } finally {
@@ -828,6 +997,7 @@
             
             // Validar si el CÓDIGO ya existe en la lista de PENDIENTES
             if (codigosPendientes.includes(codigo)) {
+                reproducirSonido('alerta');
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Vibración de error
                 alert(`⚠️ NOTIFICACIÓN: El Código "${codigo}" ya se encuentra en la lista de pendientes.`);
                 inCodigo.focus();
@@ -836,6 +1006,7 @@
 
             // Validar si la nueva posición ya existe en la lista actual
             if (posicionesAsignadas.includes(posNueva)) {
+                reproducirSonido('alerta');
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Vibración de alerta
                 const confirmar = confirm(`⚠️ NOTIFICACIÓN: La Nueva Posición "${posNueva}" ya se encuentra asignada a otro registro.\n\n¿Desea guardarla de todos modos?`);
                 if (!confirmar) {
@@ -853,17 +1024,19 @@
                     fecha: new Date().toISOString()
                 });
                 
+                reproducirSonido('exito');
                 // Limpiar formulario tras guardar
                 formManual.reset();
                 inCodigo.focus();
             } catch (error) {
+                reproducirSonido('error');
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 alert("❌ Error al guardar: " + error.message);
             }
         }
     });
 
-    // Función para renderizar la tabla combinando los movimientos y el Stock PL de Firebase
+    // Función optimizada con DocumentFragment para renderizar la tabla de un solo golpe
     function renderizarTabla() {
         if (documentosActuales.length === 0) {
             tablaBody.innerHTML = '<tr><td colspan="6" class="loader">No hay códigos registrados manualmente.</td></tr>';
@@ -873,13 +1046,14 @@
             return;
         }
 
-        tablaBody.innerHTML = '';
         let pendientes = 0;
         let movidosVisibles = 0; 
 
         // Actualiza las posiciones asignadas y códigos pendientes para la validación del formulario
         posicionesAsignadas = documentosActuales.map(doc => doc.moverA);
         codigosPendientes = documentosActuales.filter(doc => doc.estadoMovido === false).map(doc => doc.codigo);
+
+        const fragmento = document.createDocumentFragment();
 
         documentosActuales.forEach(data => {
             const docId = data.id;
@@ -888,10 +1062,11 @@
             const moverA = data.moverA || '-';
             const estaMovido = data.estadoMovido === true;
 
-            // Toma el stock guardado en el registro o directamente del diccionario Stock PL de Firebase
-            const stockResuelto = (data.stockPl && data.stockPl.trim() !== '')
-                ? data.stockPl.trim()
-                : (Object.prototype.hasOwnProperty.call(mapaStockPL, cod.trim().toUpperCase()) ? mapaStockPL[cod.trim().toUpperCase()] : '');
+            const codClave = cod.trim().toUpperCase();
+            // Prioriza el diccionario en vivo de Stock PL en Firebase; si no existe, usa el guardado en el documento
+            const stockResuelto = Object.prototype.hasOwnProperty.call(mapaStockPL, codClave)
+                ? mapaStockPL[codClave]
+                : ((data.stockPl && data.stockPl.trim() !== '') ? data.stockPl.trim() : '');
 
             // Validación visual para Stock PL
             const stockPlHtml = (stockResuelto !== '') 
@@ -928,16 +1103,16 @@
                     ${stockPlHtml}
                 </td>
                 <td style="text-align: right;">
-                    <button class="btn-movido" onclick="toggleMovido('${docId}', ${estaMovido}, this)" 
-                        onmouseover="this.innerHTML='${estaMovido ? '↩️ Deshacer' : '🚀 Mover'}'" 
-                        onmouseout="this.innerHTML='${estaMovido ? '✅ Completado' : '🚀 Mover'}'">
+                    <button class="btn-movido" data-movido="${estaMovido}" onclick="toggleMovido('${docId}', ${estaMovido}, this)">
                         ${estaMovido ? '✅ Completado' : '🚀 Mover'}
                     </button>
                 </td>
             `;
-            tablaBody.appendChild(tr);
+            fragmento.appendChild(tr);
         });
 
+        tablaBody.innerHTML = '';
+        tablaBody.appendChild(fragmento);
         actualizarContadores(pendientes, movidosVisibles); 
     }
 
@@ -973,9 +1148,13 @@
         movidosCount.textContent = `Movidos: ${movidosVisibles}`; 
     }
 
-    // Cambiar estado entre Pendiente y Completado directamente en Firestore con Animación
+    // Cambiar estado entre Pendiente y Completado directamente en Firestore con Animación y Bloqueo Anti-Doble Clic
     window.toggleMovido = async (docId, estadoActual, btnElement) => {
+        if (btnElement && btnElement.disabled) return;
+        if (btnElement) btnElement.disabled = true;
+
         try {
+            reproducirSonido('movido');
             if (navigator.vibrate) navigator.vibrate(50); // Vibración corta al completar/deshacer
 
             // --- INICIO DE LA ANIMACIÓN VISUAL ---
@@ -1009,29 +1188,34 @@
             });
         } catch (error) {
             console.error("Error al actualizar estado:", error);
+            if (btnElement) btnElement.disabled = false;
+            reproducirSonido('error');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         }
     };
 
-    // Eliminar un registro individual
+    // Eliminar un registro individual con Contraseña Oculta
     window.eliminarRegistroIndividual = async (docId, cod) => {
-        const password = prompt(`Va a eliminar el código ${cod} del Registro Manual.\nIngrese la contraseña de seguridad:`);
+        const password = await solicitarPassword(`Va a eliminar el código ${cod} del Registro Manual.\nIngrese la contraseña de seguridad:`);
         
         if (password === "Oriflame2026") {
             try {
                 await deleteDoc(doc(dbFirestore, coleccionManual, docId));
+                reproducirSonido('exito');
                 if (navigator.vibrate) navigator.vibrate(50); // Confirmación de eliminado
             } catch (error) {
+                reproducirSonido('error');
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 alert("❌ Error al eliminar el registro: " + error.message);
             }
         } else if (password !== null) {
+            reproducirSonido('error');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             alert("❌ Contraseña incorrecta. Operación cancelada.");
         }
     };
 
-    // Eliminar TODOS los registros (Actualizado usando writeBatch)
+    // Eliminar TODOS los registros (Actualizado usando writeBatch y Contraseña Oculta)
     window.eliminarTodosLosRegistros = async () => {
         try {
             // 1. Verificamos primero si hay registros en la base de datos
@@ -1039,15 +1223,16 @@
             
             // Si la colección está vacía, avisamos y salimos sin pedir contraseña
             if (querySnapshot.empty) {
+                reproducirSonido('alerta');
                 alert("ℹ️ No hay registros en el panel para eliminar.");
                 return;
             }
 
-            // 2. Si hay registros, entonces sí pedimos la contraseña
-            const password = prompt("⚠️ ATENCIÓN: Va a eliminar TODOS los registros del panel.\nIngrese la contraseña de seguridad para confirmar:");
+            // 2. Si hay registros, entonces sí pedimos la contraseña en el modal seguro
+            const password = await solicitarPassword("⚠️ ATENCIÓN: Va a eliminar TODOS los registros del panel.\nIngrese la contraseña de seguridad para confirmar:");
             
             if (password === "Oriflame2026") {
-                if (confirm("¿Está absolutamente seguro de que desea vaciar toda la tabla? Esta acción no se puede deshacer.")) {
+                if (confirm("¿Está absolutamente seguro de que desea vaciar toda la tabla?")) {
                     
                     // Implementación con BATCH: Elimina de un solo golpe (Atómico)
                     const batch = writeBatch(dbFirestore);
@@ -1059,14 +1244,17 @@
                     // Se ejecuta el lote completo
                     await batch.commit();
                     
+                    reproducirSonido('exito');
                     if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Vibración exitosa larga
                     alert("✅ Todos los registros han sido eliminados correctamente.");
                 }
             } else if (password !== null) {
+                reproducirSonido('error');
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 alert("❌ Contraseña incorrecta. Operación cancelada.");
             }
         } catch (error) {
+            reproducirSonido('error');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             alert("❌ Error al verificar/eliminar los registros: " + error.message);
         }
@@ -1101,6 +1289,7 @@
         }
         
         navigator.clipboard.writeText(excelData).then(() => {
+            reproducirSonido('exito');
             if (navigator.vibrate) navigator.vibrate(50); // Vibración rápida al copiar
             
             // Cambiamos el texto del botón temporalmente en lugar del alert molesto
@@ -1113,6 +1302,7 @@
             
         }).catch(err => {
             console.error('Error al copiar: ', err);
+            reproducirSonido('error');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]); // Error al copiar
             
             // Si falla, también debemos restaurar el botón
