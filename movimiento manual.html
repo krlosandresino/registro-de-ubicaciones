@@ -1010,7 +1010,7 @@
 
         const textoBotonOriginal = btnGuardarStockModal.innerHTML;
         btnGuardarStockModal.disabled = true;
-        btnGuardarStockModal.innerHTML = "⏳ Actualizando Firebase...";
+        btnGuardarStockModal.innerHTML = "⏳ Actualizando la base de datos...";
 
         try {
             // OPERACIÓN ATÓMICA: Eliminamos lotes anteriores y cargamos los nuevos en un único writeBatch
@@ -1053,10 +1053,10 @@
             actualizarStockAutomatico();
             inCodigo.focus();
         } catch (error) {
-            console.error("Error al actualizar Stock PL en Firebase:", error);
+            console.error("Error al actualizar Stock PL en la base de datos:", error);
             reproducirSonido('error');
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            alert("❌ Error al guardar el Stock PL en Firebase: " + error.message);
+            alert("❌ Error al guardar el Stock PL en la base de datos: " + error.message);
         } finally {
             btnGuardarStockModal.disabled = false;
             btnGuardarStockModal.innerHTML = textoBotonOriginal;
