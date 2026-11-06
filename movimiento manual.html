@@ -1131,9 +1131,15 @@
             documentos.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // Ordenar primero por estado (Pendientes arriba) y luego por fecha
+        // Ordenar primero por estado (Pendientes arriba) y luego de menor a mayor por POSICIÓN ACTUAL
         documentos.sort((a, b) => {
             if (a.estadoMovido === b.estadoMovido) {
+                const posA = (a.posicionActual || '').trim();
+                const posB = (b.posicionActual || '').trim();
+                const comparacionPos = posA.localeCompare(posB, 'es', { numeric: true, sensitivity: 'base' });
+                if (comparacionPos !== 0) {
+                    return comparacionPos;
+                }
                 return new Date(a.fecha) - new Date(b.fecha); 
             }
             return a.estadoMovido ? 1 : -1; 
@@ -1260,7 +1266,7 @@
         }
     };
 
-    // Función para copiar la tabla a Excel (CÓDIGO, POSICIÓN ACTUAL, NUEVA POSICIÓN, STOCK PL)
+    // Función para copiar la tabla a Excel con el formato (BODEGA, BODEGA, RATIO, CODIGO, ESTACION, POSICION, RATIO)
     window.copiarAExcel = () => {
         const btnCopiar = document.querySelector('button[onclick="copiarAExcel()"]');
         const textoOriginal = btnCopiar.innerHTML;
@@ -1270,20 +1276,30 @@
         btnCopiar.style.width = anchoActual + 'px';
 
         const tabla = document.querySelector('table');
-        let excelData = '';
+        let excelData = ['BODEGA', 'BODEGA', 'RATIO', 'CODIGO', 'ESTACION', 'POSICION', 'RATIO'].join('\t') + '\n';
         
-        for (let i = 0; i < tabla.rows.length; i++) {
+        for (let i = 1; i < tabla.rows.length; i++) {
             const row = tabla.rows[i];
-            let rowData = [];
             
-            // Si es la fila de "Cargando registros...", la omitimos
+            // Si es la fila de "Cargando registros..." o "No hay códigos...", la omitimos
             if (row.cells.length === 1) continue; 
             
-            // Extraemos solo las columnas 1 (Código), 2 (Pos Actual), 3 (Pos Nueva) y 4 (Stock PL)
-            rowData.push(row.cells[1].innerText.trim());
-            rowData.push(row.cells[2].innerText.trim());
-            rowData.push(row.cells[3].innerText.trim());
-            rowData.push(row.cells[4].innerText.trim());
+            const codigo = row.cells[1].innerText.trim();
+            const nuevaPosicion = row.cells[3].innerText.trim();
+            
+            // Extraer el primer bloque numérico de NUEVA POSICION para la ESTACION (ej. "A 01-04D" -> 1, "J 10-01J" -> 10)
+            const matchEstacion = nuevaPosicion.match(/\d+/);
+            const estacion = matchEstacion ? String(parseInt(matchEstacion[0], 10)) : '';
+            
+            const rowData = [
+                '14',
+                '14',
+                '1',
+                codigo,
+                estacion,
+                nuevaPosicion,
+                '1'
+            ];
             
             excelData += rowData.join('\t') + '\n';
         }
