@@ -250,6 +250,97 @@
             h2 { font-size: 1.6rem; }
             .table-container { max-height: 450px; } /* Más alto en pantallas grandes */
         }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 4px;
+                height: 100dvh;
+                box-sizing: border-box;
+            }
+            .card {
+                padding: 10px;
+                border-radius: 10px;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                max-height: 100%;
+            }
+            .header {
+                margin-bottom: 8px;
+                padding-bottom: 6px;
+            }
+            h2 {
+                font-size: 1.1rem;
+            }
+            .row {
+                flex-direction: row;
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+            label {
+                font-size: 0.68rem;
+                margin-bottom: 3px;
+            }
+            input:not([type="file"]) {
+                padding: 8px 10px;
+                font-size: 16px;
+                border-radius: 8px;
+            }
+            .floating-menu {
+                right: 0;
+                left: auto;
+                width: 260px;
+                max-width: calc(100vw - 24px);
+                padding: 8px;
+            }
+            .floating-menu button {
+                padding: 8px;
+                font-size: 0.82rem;
+            }
+            .actions-top {
+                gap: 6px;
+                margin-bottom: 8px;
+            }
+            .btn {
+                padding: 8px 6px;
+                font-size: 0.74rem;
+                border-radius: 8px;
+                white-space: nowrap;
+            }
+            .search-container {
+                margin-bottom: 8px;
+            }
+            #buscador {
+                padding: 7px 10px;
+                font-size: 0.82rem;
+                border-radius: 8px;
+            }
+            .table-container {
+                flex: 1;
+                max-height: none;
+            }
+            table {
+                min-width: 100%;
+            }
+            th {
+                font-size: 0.65rem;
+                padding: 6px 4px;
+            }
+            td {
+                padding: 7px 4px;
+                font-size: 0.78rem;
+                vertical-align: middle;
+            }
+            .btn-delete-row {
+                padding: 5px 8px;
+                font-size: 0.68rem;
+            }
+            .hint {
+                margin-top: 6px;
+                padding: 6px;
+                font-size: 0.65rem;
+            }
+        }
         @keyframes spinUpdate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
