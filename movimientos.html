@@ -225,24 +225,78 @@
         }
 
         @media (max-width: 600px) {
+            body {
+                padding: 4px;
+                height: 100dvh;
+            }
+            .container {
+                padding: 8px;
+                border-radius: 10px;
+            }
             .header {
                 flex-direction: column;
                 align-items: flex-start;
+                margin-bottom: 6px;
+                padding-bottom: 6px;
+                gap: 6px;
+            }
+            .header h1 {
+                font-size: 1.05rem;
             }
             .stats {
                 width: 100%;
                 justify-content: space-between;
-                margin-top: 5px;
+                gap: 6px;
+                margin-top: 0;
             }
-            th { font-size: 0.65rem; padding: 8px 2px; }
-            td { font-size: 0.75rem; padding: 6px 2px; }
+            .stats span {
+                flex: 1;
+                text-align: center;
+                padding: 4px 6px;
+                font-size: 0.72rem;
+                box-sizing: border-box;
+            }
+            table {
+                min-width: 100%;
+                margin: 0 auto;
+            }
+            th {
+                font-size: 0.62rem;
+                padding: 5px 2px;
+            }
+            td {
+                font-size: 0.72rem;
+                padding: 5px 2px;
+            }
+            th:nth-child(1), td:nth-child(1) {
+                width: 28px;
+            }
+            .loc-registro {
+                white-space: nowrap;
+                font-size: 0.70rem;
+                gap: 2px;
+            }
+            .loc-lectura {
+                padding: 2px 5px;
+                font-size: 0.70rem;
+                flex-wrap: nowrap;
+                white-space: nowrap;
+                gap: 2px;
+            }
+            svg {
+                width: 11px;
+                height: 11px;
+            }
             .btn-movido { 
-                width: 105px; 
-                min-width: 105px; 
+                width: 82px; 
+                min-width: 82px; 
                 font-size: 0.65rem; 
+                padding: 5px 2px;
             }
-            .loc-lectura { padding: 2px 4px; font-size: 0.70rem; }
-            .btn-eliminar { padding: 4px 6px; font-size: 0.75rem; }
+            .btn-eliminar {
+                padding: 4px 5px;
+                font-size: 0.72rem;
+            }
         }
     </style>
 </head>
@@ -439,7 +493,7 @@
     window.eliminarRegistroIndividual = async (cod) => {
         const password = prompt(`Va a eliminar el código ${cod} del Registro de Ubicación.\nIngrese la contraseña de seguridad:`);
         
-        if (password === "Oriflame2026") {
+        if (password === "2026") {
             try {
                 const docIds = docIdsRegistro[cod];
                 if (docIds && docIds.length > 0) {
